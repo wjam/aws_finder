@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSearch(t *testing.T) {
+func TestFindVpcEndpointService(t *testing.T) {
 	var buf bytes.Buffer
-	search("find", log.New(&buf, "", 0), &vpcEndpoints{
+	findVpcEndpointService("find", log.New(&buf, "", 0), &vpcEndpoints{
 		data: map[string]ec2.DescribeVpcEndpointServicesOutput{
 			"": {
 				NextToken: aws.String("next-one"),

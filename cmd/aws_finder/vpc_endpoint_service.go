@@ -2,22 +2,26 @@ package main
 
 import (
 	"log"
-	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
 )
 
-func main() {
-	needle := os.Args[1]
-	finder.Search(func(l *log.Logger, sess *session.Session) {
-		search(needle, l, ec2.New(sess))
-	})
+var vpcEndpointService = &cobra.Command{
+	Use:   "vpc_endpoint_service [service name]",
+	Short: "Find a VPC endpoint service by the given service name",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		finder.Search(func(l *log.Logger, sess *session.Session) {
+			findVpcEndpointService(args[0], l, ec2.New(sess))
+		})
+	},
 }
 
-func search(needle string, l *log.Logger, client vpcEndpointLister) {
+func findVpcEndpointService(needle string, l *log.Logger, client vpcEndpointLister) {
 	var next *string
 	for {
 		output, err := client.DescribeVpcEndpointServices(&ec2.DescribeVpcEndpointServicesInput{

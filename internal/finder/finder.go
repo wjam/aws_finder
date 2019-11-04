@@ -28,31 +28,32 @@ func Search(f func(*log.Logger, *session.Session)) {
 	var wg sync.WaitGroup
 
 	for _, profile := range profiles.ToSlice() {
-		l := log.New(os.Stdout, fmt.Sprintf("[%s]", profile), 0)
+		// Shadow the for variable so that it's no longer a pointer, which will change before the go function is run
+		profile := profile.(string)
+		l := log.New(os.Stdout, fmt.Sprintf("[%s] ", profile), 0)
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			searchAccount(profile.(string), l, f)
+			searchAccount(profile, l, f)
 		}()
 
-		wg.Wait()
 	}
+	wg.Wait()
 }
 
 func searchAccount(profile string, parentLogger *log.Logger, f func(*log.Logger, *session.Session)) {
 	regions, err := regions(profile)
 	if err != nil {
-		panic(err)
+		parentLogger.Printf("Failed to lookup regions: %s", err)
+		return
 	}
 
 	var wg sync.WaitGroup
 	for _, region := range regions {
-		sess := newSession(aws.NewConfig().
-			WithRegion(region).
-			WithCredentials(credentials.NewSharedCredentials("", profile)))
+		sess := newSession(region, profile)
 
-		l := log.New(parentLogger.Writer(), fmt.Sprintf("%s[%s]", parentLogger.Prefix(), region), 0)
+		l := log.New(parentLogger.Writer(), fmt.Sprintf("%s[%s] ", parentLogger.Prefix(), region), 0)
 
 		wg.Add(1)
 		go func() {
@@ -60,8 +61,8 @@ func searchAccount(profile string, parentLogger *log.Logger, f func(*log.Logger,
 			f(l, sess)
 		}()
 
-		wg.Wait()
 	}
+	wg.Wait()
 }
 
 func profiles() (mapset.Set, error) {
@@ -122,7 +123,7 @@ func profilesFromCredentialsFile() (mapset.Set, error) {
 }
 
 func regions(profile string) ([]string, error) {
-	sess := newSession(aws.NewConfig().WithCredentials(credentials.NewSharedCredentials("", profile)))
+	sess := newSession("eu-west-1", profile)
 
 	output, err := ec2New(sess).DescribeRegions(&ec2.DescribeRegionsInput{})
 	if err != nil {
@@ -150,7 +151,7 @@ func configFile() (string, error) {
 }
 
 func credentialsFile() (string, error) {
-	if file, ok := os.LookupEnv("AWS_CREDENTIAL_FILE"); ok {
+	if file, ok := os.LookupEnv("AWS_SHARED_CREDENTIALS_FILE"); ok {
 		return file, nil
 	}
 
@@ -165,8 +166,10 @@ func credentialsFile() (string, error) {
 var ec2New = func(p client.ConfigProvider) regionLister {
 	return ec2.New(p)
 }
-var newSession = func(c *aws.Config) *session.Session {
-	return session.Must(session.NewSession(c))
+var newSession = func(region, profile string) *session.Session {
+	return session.Must(session.NewSession(aws.NewConfig().
+		WithRegion(region).
+		WithCredentials(credentials.NewSharedCredentials("", profile))))
 }
 var osUserHomeDir = os.UserHomeDir
 

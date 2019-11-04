@@ -1,9 +1,11 @@
 package finder
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -28,9 +30,12 @@ foo = baz
 
 [profile prod]
 foo = qux
+
+[profile region-failure]
+this = will-fail
 `), 0600)
 	require.NoError(t, err)
-	existingCredentials := os.Getenv("AWS_CREDENTIAL_FILE")
+	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
 	existingConfig := os.Getenv("AWS_CONFIG_FILE")
 	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
 	defer os.Setenv("AWS_CONFIG_FILE", existingCredentials)
@@ -40,11 +45,22 @@ foo = qux
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
 	}
-	ec2New = func(client.ConfigProvider) regionLister {
+	ec2New = func(c client.ConfigProvider) regionLister {
+		if sess, ok := c.(*session.Session); ok {
+			if aws.StringValue(sess.Config.Endpoint) == "region-failure" {
+				return &rFailure{}
+			}
+		}
 		return &r{}
 	}
-	newSession = func(*aws.Config) *session.Session {
-		return nil
+	newSession = func(region string, profile string) *session.Session {
+		ret := &session.Session{
+			Config: &aws.Config{
+				Region:   aws.String(region),
+				Endpoint: aws.String(profile),
+			},
+		}
+		return ret
 	}
 
 	var lock sync.RWMutex
@@ -52,19 +68,19 @@ foo = qux
 	Search(func(l *log.Logger, _ *session.Session) {
 		lock.Lock()
 		defer lock.Unlock()
-		prefixes = append(prefixes, l.Prefix())
+		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
 	})
 
 	require.Len(t, prefixes, 9)
-	assert.Contains(t, prefixes, "[default][eu-west-1]")
-	assert.Contains(t, prefixes, "[default][eu-west-2]")
-	assert.Contains(t, prefixes, "[default][us-east-1]")
-	assert.Contains(t, prefixes, "[dev][eu-west-1]")
-	assert.Contains(t, prefixes, "[dev][eu-west-2]")
-	assert.Contains(t, prefixes, "[dev][us-east-1]")
-	assert.Contains(t, prefixes, "[prod][eu-west-1]")
-	assert.Contains(t, prefixes, "[prod][eu-west-2]")
-	assert.Contains(t, prefixes, "[prod][us-east-1]")
+	assert.Contains(t, prefixes, "[default] [eu-west-1]")
+	assert.Contains(t, prefixes, "[default] [eu-west-2]")
+	assert.Contains(t, prefixes, "[default] [us-east-1]")
+	assert.Contains(t, prefixes, "[dev] [eu-west-1]")
+	assert.Contains(t, prefixes, "[dev] [eu-west-2]")
+	assert.Contains(t, prefixes, "[dev] [us-east-1]")
+	assert.Contains(t, prefixes, "[prod] [eu-west-1]")
+	assert.Contains(t, prefixes, "[prod] [eu-west-2]")
+	assert.Contains(t, prefixes, "[prod] [us-east-1]")
 }
 
 func TestSearch_Credentials(t *testing.T) {
@@ -85,11 +101,11 @@ aws_access_key_id=123
 aws_secret_access_key=321
 `), 0600)
 	require.NoError(t, err)
-	existingCredentials := os.Getenv("AWS_CREDENTIAL_FILE")
+	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
 	existingConfig := os.Getenv("AWS_CONFIG_FILE")
 	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
 	defer os.Setenv("AWS_CONFIG_FILE", existingCredentials)
-	err = os.Setenv("AWS_CREDENTIAL_FILE", credentialsFile.Name())
+	err = os.Setenv("AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
 	require.NoError(t, err)
 
 	osUserHomeDir = func() (string, error) {
@@ -98,7 +114,7 @@ aws_secret_access_key=321
 	ec2New = func(client.ConfigProvider) regionLister {
 		return &r{}
 	}
-	newSession = func(*aws.Config) *session.Session {
+	newSession = func(string, string) *session.Session {
 		return nil
 	}
 
@@ -107,19 +123,19 @@ aws_secret_access_key=321
 	Search(func(l *log.Logger, _ *session.Session) {
 		lock.Lock()
 		defer lock.Unlock()
-		prefixes = append(prefixes, l.Prefix())
+		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
 	})
 
 	require.Len(t, prefixes, 9)
-	assert.Contains(t, prefixes, "[default][eu-west-1]")
-	assert.Contains(t, prefixes, "[default][eu-west-2]")
-	assert.Contains(t, prefixes, "[default][us-east-1]")
-	assert.Contains(t, prefixes, "[dev][eu-west-1]")
-	assert.Contains(t, prefixes, "[dev][eu-west-2]")
-	assert.Contains(t, prefixes, "[dev][us-east-1]")
-	assert.Contains(t, prefixes, "[baz][eu-west-1]")
-	assert.Contains(t, prefixes, "[baz][eu-west-2]")
-	assert.Contains(t, prefixes, "[baz][us-east-1]")
+	assert.Contains(t, prefixes, "[default] [eu-west-1]")
+	assert.Contains(t, prefixes, "[default] [eu-west-2]")
+	assert.Contains(t, prefixes, "[default] [us-east-1]")
+	assert.Contains(t, prefixes, "[dev] [eu-west-1]")
+	assert.Contains(t, prefixes, "[dev] [eu-west-2]")
+	assert.Contains(t, prefixes, "[dev] [us-east-1]")
+	assert.Contains(t, prefixes, "[baz] [eu-west-1]")
+	assert.Contains(t, prefixes, "[baz] [eu-west-2]")
+	assert.Contains(t, prefixes, "[baz] [us-east-1]")
 }
 
 func TestSearch_ConfigAndCredentials(t *testing.T) {
@@ -154,9 +170,9 @@ foo = qux
 `), 0600)
 	require.NoError(t, err)
 
-	existingCredentials := os.Getenv("AWS_CREDENTIAL_FILE")
-	defer os.Setenv("AWS_CREDENTIAL_FILE", existingCredentials)
-	err = os.Setenv("AWS_CREDENTIAL_FILE", credentialsFile.Name())
+	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
+	defer os.Setenv("AWS_SHARED_CREDENTIALS_FILE", existingCredentials)
+	err = os.Setenv("AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
 	require.NoError(t, err)
 	existingConfig := os.Getenv("AWS_CONFIG_FILE")
 	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
@@ -169,7 +185,7 @@ foo = qux
 	ec2New = func(client.ConfigProvider) regionLister {
 		return &r{}
 	}
-	newSession = func(*aws.Config) *session.Session {
+	newSession = func(string, string) *session.Session {
 		return nil
 	}
 
@@ -178,25 +194,32 @@ foo = qux
 	Search(func(l *log.Logger, _ *session.Session) {
 		lock.Lock()
 		defer lock.Unlock()
-		prefixes = append(prefixes, l.Prefix())
+		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
 	})
 
 	require.Len(t, prefixes, 12)
-	assert.Contains(t, prefixes, "[default][eu-west-1]")
-	assert.Contains(t, prefixes, "[default][eu-west-2]")
-	assert.Contains(t, prefixes, "[default][us-east-1]")
-	assert.Contains(t, prefixes, "[dev][eu-west-1]")
-	assert.Contains(t, prefixes, "[dev][eu-west-2]")
-	assert.Contains(t, prefixes, "[dev][us-east-1]")
-	assert.Contains(t, prefixes, "[baz][eu-west-1]")
-	assert.Contains(t, prefixes, "[baz][eu-west-2]")
-	assert.Contains(t, prefixes, "[baz][us-east-1]")
-	assert.Contains(t, prefixes, "[prod][eu-west-1]")
-	assert.Contains(t, prefixes, "[prod][eu-west-2]")
-	assert.Contains(t, prefixes, "[prod][us-east-1]")
+	assert.Contains(t, prefixes, "[default] [eu-west-1]")
+	assert.Contains(t, prefixes, "[default] [eu-west-2]")
+	assert.Contains(t, prefixes, "[default] [us-east-1]")
+	assert.Contains(t, prefixes, "[dev] [eu-west-1]")
+	assert.Contains(t, prefixes, "[dev] [eu-west-2]")
+	assert.Contains(t, prefixes, "[dev] [us-east-1]")
+	assert.Contains(t, prefixes, "[baz] [eu-west-1]")
+	assert.Contains(t, prefixes, "[baz] [eu-west-2]")
+	assert.Contains(t, prefixes, "[baz] [us-east-1]")
+	assert.Contains(t, prefixes, "[prod] [eu-west-1]")
+	assert.Contains(t, prefixes, "[prod] [eu-west-2]")
+	assert.Contains(t, prefixes, "[prod] [us-east-1]")
 }
 
 var _ regionLister = &r{}
+
+type rFailure struct {
+}
+
+func (r *rFailure) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+	return nil, fmt.Errorf("something went wrong")
+}
 
 type r struct {
 }
