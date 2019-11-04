@@ -18,29 +18,25 @@ clean:
 	@go mod download
 	@touch .vendor
 
-.generate: $(go_files) go.mod go.sum
+.generate: $(go_files) .vendor go.mod go.sum
 	@go generate ./...
 	@touch .generate
 
-bin/goimports: .vendor
-	# Building goimports...
-	@go build -o bin/goimports golang.org/x/tools/cmd/goimports
-
-fmt: bin/goimports .generate $(go_files)
+fmt: .generate $(go_files)
 	# Formatting files...
-	@bin/goimports -w .
+	@go run golang.org/x/tools/cmd/goimports -w .
 
-.fmtcheck: bin/goimports .generate $(go_files)
+.fmtcheck: .generate $(go_files)
 	# Checking format of Go files...
-	@GOIMPORTS=$$(bin/goimports -l .) && \
+	@GOIMPORTS=$$(go run golang.org/x/tools/cmd/goimports -l .) && \
 	if [ "$$GOIMPORTS" != "" ]; then \
-		bin/goimports -d .; \
+		go run golang.org/x/tools/cmd/goimports -d .; \
 		exit 1; \
 	fi
 	@touch .fmtcheck
 
 .test: .generate $(go_files)
-	@go test -v -count=1 ./...
+	@go test -cover -v -count=1 ./...
 	@touch .test
 
 $(mac_bins): .fmtcheck .test $(go_files)
