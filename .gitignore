@@ -270,7 +270,3 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/vim,linux,macos,emacs,windows,terraform,intellij+all,visualstudiocode
 
 bin/
-.test
-.vendor
-.generate
-.fmtcheck
