@@ -3,7 +3,7 @@ module github.com/wjam/aws_finder
 go 1.13
 
 require (
-	github.com/aws/aws-sdk-go v1.25.6
+	github.com/aws/aws-sdk-go v1.29.17
 	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/deckarep/golang-set v1.7.1
