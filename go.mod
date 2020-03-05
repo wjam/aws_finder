@@ -15,5 +15,5 @@ require (
 	github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8 // indirect
 	golang.org/x/net v0.0.0-20191003171128-d98b1b443823 // indirect
 	golang.org/x/tools v0.0.0-20191005014404-c9f9432ec4b2
-	gopkg.in/ini.v1 v1.48.0
+	gopkg.in/ini.v1 v1.52.0
 )
