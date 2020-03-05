@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
+
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws"
 
@@ -11,19 +14,21 @@ import (
 	"github.com/wjam/aws_finder/internal/finder"
 )
 
-var instanceByIp = &cobra.Command{
-	Use:   "instance_by_ip [IP address]",
-	Short: "Find an instance with the given IP address",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		finder.Search(func(l *log.Logger, sess *session.Session) {
-			findInstanceByIp(args[0], l, ec2.New(sess))
-		})
-	},
+func init() {
+	commands = append(commands, &cobra.Command{
+		Use:   "instance_by_ip [IP address]",
+		Short: "Find an instance with the given IP address",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
+				findInstanceByIp(ctx, args[0], l, ec2.New(sess))
+			})
+		},
+	})
 }
 
-func findInstanceByIp(needle string, l *log.Logger, client instanceLister) {
-	err := client.DescribeInstancesPages(&ec2.DescribeInstancesInput{}, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
+func findInstanceByIp(ctx context.Context, needle string, l *log.Logger, client instanceLister) {
+	err := client.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{}, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
 		for _, r := range output.Reservations {
 			for _, instance := range r.Instances {
 				if aws.StringValue(instance.PublicIpAddress) == needle {
@@ -53,5 +58,5 @@ func findInstanceByIp(needle string, l *log.Logger, client instanceLister) {
 }
 
 type instanceLister interface {
-	DescribeInstancesPages(*ec2.DescribeInstancesInput, func(*ec2.DescribeInstancesOutput, bool) bool) error
+	DescribeInstancesPagesWithContext(ctx aws.Context, input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool, opts ...request.Option) error
 }

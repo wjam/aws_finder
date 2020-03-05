@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var commands []*cobra.Command
+
 func main() {
 	exeName := os.Args[0][strings.LastIndex(os.Args[0], string(os.PathSeparator))+1:]
 	root := &cobra.Command{
@@ -36,10 +38,8 @@ source <(%[1]s completion zsh)
 		},
 	}
 
+	root.AddCommand(commands...)
 	root.AddCommand(shellCompletion)
-	root.AddCommand(instanceByIp)
-	root.AddCommand(vpcByCidr)
-	root.AddCommand(vpcEndpointService)
 
 	if err := root.Execute(); err != nil {
 		fmt.Println(err)

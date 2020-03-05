@@ -1,6 +1,7 @@
 package finder
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
@@ -17,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSearch_Config(t *testing.T) {
+func TestSearchPerRegion_Config(t *testing.T) {
 	configFile, err := ioutil.TempFile("", "")
 	require.NoError(t, err)
 	defer os.Remove(configFile.Name())
@@ -65,7 +68,7 @@ this = will-fail
 
 	var lock sync.RWMutex
 	var prefixes []string
-	Search(func(l *log.Logger, _ *session.Session) {
+	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -120,7 +123,7 @@ aws_secret_access_key=321
 
 	var lock sync.RWMutex
 	var prefixes []string
-	Search(func(l *log.Logger, _ *session.Session) {
+	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -138,7 +141,7 @@ aws_secret_access_key=321
 	assert.Contains(t, prefixes, "[baz] [us-east-1]")
 }
 
-func TestSearch_ConfigAndCredentials(t *testing.T) {
+func TestSearchPerRegion_ConfigAndCredentials(t *testing.T) {
 	credentialsFile, err := ioutil.TempFile("", "")
 	require.NoError(t, err)
 	defer os.Remove(credentialsFile.Name())
@@ -191,7 +194,7 @@ foo = qux
 
 	var lock sync.RWMutex
 	var prefixes []string
-	Search(func(l *log.Logger, _ *session.Session) {
+	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -212,19 +215,72 @@ foo = qux
 	assert.Contains(t, prefixes, "[prod] [us-east-1]")
 }
 
+func TestSearchPerProfile_Config(t *testing.T) {
+	configFile, err := ioutil.TempFile("", "")
+	require.NoError(t, err)
+	defer os.Remove(configFile.Name())
+	err = ioutil.WriteFile(configFile.Name(), []byte(`
+[profile default]
+foo = bar
+
+[profile dev]
+foo = baz
+
+[profile prod]
+foo = qux
+
+[profile region-failure]
+this = will-fail
+`), 0600)
+	require.NoError(t, err)
+	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
+	existingConfig := os.Getenv("AWS_CONFIG_FILE")
+	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
+	defer os.Setenv("AWS_CONFIG_FILE", existingCredentials)
+	err = os.Setenv("AWS_CONFIG_FILE", configFile.Name())
+	require.NoError(t, err)
+
+	osUserHomeDir = func() (string, error) {
+		return ioutil.TempDir("", "")
+	}
+	newSession = func(region string, profile string) *session.Session {
+		ret := &session.Session{
+			Config: &aws.Config{
+				Region:   aws.String(region),
+				Endpoint: aws.String(profile),
+			},
+		}
+		return ret
+	}
+
+	var lock sync.RWMutex
+	var prefixes []string
+	SearchPerProfile(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
+		lock.Lock()
+		defer lock.Unlock()
+		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
+	})
+
+	require.Len(t, prefixes, 4)
+	assert.Contains(t, prefixes, "[default]")
+	assert.Contains(t, prefixes, "[dev]")
+	assert.Contains(t, prefixes, "[prod]")
+	assert.Contains(t, prefixes, "[region-failure]")
+}
+
 var _ regionLister = &r{}
 
 type rFailure struct {
 }
 
-func (r *rFailure) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+func (r *rFailure) DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, opts ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 	return nil, fmt.Errorf("something went wrong")
 }
 
 type r struct {
 }
 
-func (r *r) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+func (r *r) DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, opts ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 	return &ec2.DescribeRegionsOutput{
 		Regions: []*ec2.Region{
 			{

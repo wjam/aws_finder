@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -13,7 +16,7 @@ import (
 
 func TestFindInstanceByIp_PrivateIpv4(t *testing.T) {
 	var buf bytes.Buffer
-	findInstanceByIp("find", log.New(&buf, "", 0), &instances{
+	findInstanceByIp(context.TODO(), "find", log.New(&buf, "", 0), &instances{
 		[][]*ec2.Reservation{
 			{
 				{
@@ -56,7 +59,7 @@ func TestFindInstanceByIp_PrivateIpv4(t *testing.T) {
 
 func TestFindInstanceByIp_PrivateIpv6(t *testing.T) {
 	var buf bytes.Buffer
-	findInstanceByIp("find", log.New(&buf, "", 0), &instances{
+	findInstanceByIp(context.TODO(), "find", log.New(&buf, "", 0), &instances{
 		[][]*ec2.Reservation{
 			{
 				{
@@ -102,7 +105,7 @@ func TestFindInstanceByIp_PrivateIpv6(t *testing.T) {
 
 func TestFindInstanceByIp_Public(t *testing.T) {
 	var buf bytes.Buffer
-	findInstanceByIp("find", log.New(&buf, "", 0), &instances{
+	findInstanceByIp(context.TODO(), "find", log.New(&buf, "", 0), &instances{
 		[][]*ec2.Reservation{
 			{
 				{
@@ -130,7 +133,10 @@ type instances struct {
 	reservations [][]*ec2.Reservation
 }
 
-func (i *instances) DescribeInstancesPages(input *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool) error {
+func (i *instances) DescribeInstancesPagesWithContext(ctx aws.Context, _ *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool, _ ...request.Option) error {
+	if ctx == nil {
+		return fmt.Errorf("missing context")
+	}
 	for _, r := range i.reservations {
 		if !f(&ec2.DescribeInstancesOutput{
 			Reservations: r,

@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -13,7 +16,7 @@ import (
 
 func TestFindVpcEndpointService(t *testing.T) {
 	var buf bytes.Buffer
-	findVpcEndpointService("find", log.New(&buf, "", 0), &vpcEndpoints{
+	findVpcEndpointService(context.TODO(), "find", log.New(&buf, "", 0), &vpcEndpoints{
 		data: map[string]ec2.DescribeVpcEndpointServicesOutput{
 			"": {
 				NextToken: aws.String("next-one"),
@@ -55,7 +58,10 @@ type vpcEndpoints struct {
 	data map[string]ec2.DescribeVpcEndpointServicesOutput
 }
 
-func (v *vpcEndpoints) DescribeVpcEndpointServices(input *ec2.DescribeVpcEndpointServicesInput) (*ec2.DescribeVpcEndpointServicesOutput, error) {
+func (v *vpcEndpoints) DescribeVpcEndpointServicesWithContext(ctx aws.Context, input *ec2.DescribeVpcEndpointServicesInput, _ ...request.Option) (*ec2.DescribeVpcEndpointServicesOutput, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("missing context")
+	}
 	if data, ok := v.data[aws.StringValue(input.NextToken)]; ok {
 		return &data, nil
 	}
