@@ -19,6 +19,7 @@ bin/:
 bin/.vendor: bin/ go.mod go.sum
 	# Downloading modules...
 	@go mod download
+	@go mod tidy
 	@touch bin/.vendor
 
 bin/.generate: $(go_files) bin/.vendor go.mod go.sum
