@@ -1,11 +1,15 @@
 package finder
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 	"strings"
 	"sync"
+
+	"github.com/aws/aws-sdk-go/aws/request"
 
 	mapset "github.com/deckarep/golang-set"
 
@@ -18,8 +22,22 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-// Search will call `f` for every region in every profile defined in ~/.aws/config
-func Search(f func(*log.Logger, *session.Session)) {
+// SearchPerRegion will call `f` for every region in every profile defined in ~/.aws/config or ~/.aws/credentials
+func SearchPerRegion(ctx context.Context, f func(context.Context, *log.Logger, *session.Session)) {
+	perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) {
+		perRegion(ctx, profile, l, f)
+	})
+}
+
+// SearchPerProfile will call `f` for every profile defined in ~/.aws/config or ~/.aws/credentials
+func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, *session.Session)) {
+	perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) {
+		sess := newSession("eu-west-1", profile)
+		f(ctx, l, sess)
+	})
+}
+
+func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger)) {
 	profiles, err := profiles()
 	if err != nil {
 		panic(err)
@@ -34,16 +52,18 @@ func Search(f func(*log.Logger, *session.Session)) {
 
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
-			searchAccount(profile, l, f)
+			pprof.Do(ctx, pprof.Labels("profile", profile), func(ctx context.Context) {
+				defer wg.Done()
+				f(ctx, profile, l)
+			})
 		}()
 
 	}
 	wg.Wait()
 }
 
-func searchAccount(profile string, parentLogger *log.Logger, f func(*log.Logger, *session.Session)) {
-	regions, err := regions(profile)
+func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f func(context.Context, *log.Logger, *session.Session)) {
+	regions, err := regions(ctx, profile)
 	if err != nil {
 		parentLogger.Printf("Failed to lookup regions: %s", err)
 		return
@@ -57,8 +77,10 @@ func searchAccount(profile string, parentLogger *log.Logger, f func(*log.Logger,
 
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
-			f(l, sess)
+			pprof.Do(ctx, pprof.Labels("region", region), func(ctx context.Context) {
+				defer wg.Done()
+				f(ctx, l, sess)
+			})
 		}()
 
 	}
@@ -122,10 +144,10 @@ func profilesFromCredentialsFile() (mapset.Set, error) {
 	return profiles, nil
 }
 
-func regions(profile string) ([]string, error) {
+func regions(ctx context.Context, profile string) ([]string, error) {
 	sess := newSession("eu-west-1", profile)
 
-	output, err := ec2New(sess).DescribeRegions(&ec2.DescribeRegionsInput{})
+	output, err := ec2New(sess).DescribeRegionsWithContext(ctx, &ec2.DescribeRegionsInput{})
 	if err != nil {
 		return nil, err
 	}
@@ -174,5 +196,5 @@ var newSession = func(region, profile string) *session.Session {
 var osUserHomeDir = os.UserHomeDir
 
 type regionLister interface {
-	DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error)
+	DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, opts ...request.Option) (*ec2.DescribeRegionsOutput, error)
 }

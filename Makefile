@@ -42,7 +42,7 @@ bin/coverage.out: bin/.generate $(go_files)
 	@go test -cover -v -count=1 ./... -coverprofile bin/coverage.out
 
 coverage: bin/coverage.out
-	@go tool cover -html=coverage.out
+	@go tool cover -html=bin/coverage.out
 
 $(mac_bins): bin/.fmtcheck bin/coverage.out $(go_files)
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(@F))
