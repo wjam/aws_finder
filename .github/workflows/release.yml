@@ -48,6 +48,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/windows/aws_finder
-          asset_name: aws_finder-windows-amd64
+          asset_path: ./bin/windows/aws_finder.exe
+          asset_name: aws_finder-windows-amd64.exe
           asset_content_type: application/octet-stream
