@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindLogGroupByName(t *testing.T) {
+func TestFindLogGroup(t *testing.T) {
 	var buf bytes.Buffer
-	findLogGroupByName(context.TODO(), "find", log.New(&buf, "", 0), &logGroups{
+	findLogGroup(context.TODO(), "find", log.New(&buf, "", 0), &logGroups{
 		data: [][]*cloudwatchlogs.LogGroup{
 			{
 				{

@@ -16,18 +16,18 @@ import (
 
 func init() {
 	commands = append(commands, &cobra.Command{
-		Use:   "s3_by_name [prefix]",
+		Use:   "s3_bucket [needle]",
 		Short: "Find an S3 bucket by name",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
-				findS3ByName(ctx, args[0], l, s3.New(sess))
+				findS3Bucket(ctx, args[0], l, s3.New(sess))
 			})
 		},
 	})
 }
 
-func findS3ByName(ctx context.Context, needle string, l *log.Logger, client s3Lister) {
+func findS3Bucket(ctx context.Context, needle string, l *log.Logger, client s3Lister) {
 	buckets, err := client.ListBucketsWithContext(ctx, &s3.ListBucketsInput{})
 	if err != nil {
 		l.Printf("Failed to query buckets: %s", err)
@@ -35,7 +35,7 @@ func findS3ByName(ctx context.Context, needle string, l *log.Logger, client s3Li
 	}
 
 	for _, bucket := range buckets.Buckets {
-		if strings.HasPrefix(aws.StringValue(bucket.Name), needle) {
+		if strings.Contains(aws.StringValue(bucket.Name), needle) {
 
 			location, err := client.GetBucketLocationWithContext(ctx, &s3.GetBucketLocationInput{Bucket: bucket.Name})
 			if err != nil {

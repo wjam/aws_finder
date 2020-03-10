@@ -17,18 +17,18 @@ import (
 
 func init() {
 	commands = append(commands, &cobra.Command{
-		Use:   "log_group_by_name [name]",
+		Use:   "log_group [needle]",
 		Short: "Find a CloudWatch log group by name",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
-				findLogGroupByName(ctx, args[0], l, cloudwatchlogs.New(sess))
+				findLogGroup(ctx, args[0], l, cloudwatchlogs.New(sess))
 			})
 		},
 	})
 }
 
-func findLogGroupByName(ctx context.Context, needle string, l *log.Logger, client logGroupLister) {
+func findLogGroup(ctx context.Context, needle string, l *log.Logger, client logGroupLister) {
 	err := client.DescribeLogGroupsPagesWithContext(ctx, &cloudwatchlogs.DescribeLogGroupsInput{}, func(output *cloudwatchlogs.DescribeLogGroupsOutput, _ bool) bool {
 		for _, g := range output.LogGroups {
 			if strings.Contains(aws.StringValue(g.LogGroupName), needle) {

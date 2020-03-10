@@ -32,7 +32,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/darwin/aws_finder
+          asset_path: ./bin/release/aws_finder-darwin-amd64
           asset_name: aws_finder-darwin-amd64
           asset_content_type: application/octet-stream
       - uses: actions/upload-release-asset@v1.0.1
@@ -40,7 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/linux/aws_finder
+          asset_path: ./bin/release/aws_finder-linux-amd64
           asset_name: aws_finder-linux-amd64
           asset_content_type: application/octet-stream
       - uses: actions/upload-release-asset@v1.0.1
@@ -48,6 +48,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/windows/aws_finder.exe
+          asset_path: ./bin/release/aws_finder-windows-amd64.exe
           asset_name: aws_finder-windows-amd64.exe
+          asset_content_type: application/octet-stream
+      - uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/release/sha256sums.txt
+          asset_name: sha256sums.txt
           asset_content_type: application/octet-stream

@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindVpcByCidr(t *testing.T) {
+func TestFindVpc(t *testing.T) {
 	var buf bytes.Buffer
-	findVpcByCidr(context.TODO(), "needle", log.New(&buf, "", 0), &vpcs{
+	findVpc(context.TODO(), "needle", log.New(&buf, "", 0), &vpcs{
 		data: [][]*ec2.Vpc{
 			{
 				{
