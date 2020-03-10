@@ -16,7 +16,7 @@ import (
 
 func init() {
 	commands = append(commands, &cobra.Command{
-		Use:   "vpc_endpoint_service [service name]",
+		Use:   "vpc_endpoint_service [needle]",
 		Short: "Find a VPC endpoint service by the given service name",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {

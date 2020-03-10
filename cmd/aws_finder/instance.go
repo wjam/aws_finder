@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/request"
 
@@ -16,36 +17,23 @@ import (
 
 func init() {
 	commands = append(commands, &cobra.Command{
-		Use:   "instance_by_ip [IP address]",
-		Short: "Find an instance with the given IP address",
+		Use:   "instance [needle]",
+		Short: "Find an instance by type, AMI or ip address",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
-				findInstanceByIp(ctx, args[0], l, ec2.New(sess))
+				findInstances(ctx, args[0], l, ec2.New(sess))
 			})
 		},
 	})
 }
 
-func findInstanceByIp(ctx context.Context, needle string, l *log.Logger, client instanceLister) {
+func findInstances(ctx context.Context, needle string, l *log.Logger, client instanceLister) {
 	err := client.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{}, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
 		for _, r := range output.Reservations {
 			for _, instance := range r.Instances {
-				if aws.StringValue(instance.PublicIpAddress) == needle {
+				if findInstance(needle, instance) {
 					l.Println(aws.StringValue(instance.InstanceId))
-				}
-
-				for _, network := range instance.NetworkInterfaces {
-					for _, ip := range network.PrivateIpAddresses {
-						if aws.StringValue(ip.PrivateIpAddress) == needle {
-							l.Println(aws.StringValue(instance.InstanceId))
-						}
-					}
-					for _, ip := range network.Ipv6Addresses {
-						if aws.StringValue(ip.Ipv6Address) == needle {
-							l.Println(aws.StringValue(instance.InstanceId))
-						}
-					}
 				}
 			}
 		}
@@ -55,6 +43,39 @@ func findInstanceByIp(ctx context.Context, needle string, l *log.Logger, client 
 		l.Printf("Failed to query instances: %s", err)
 		return
 	}
+}
+
+func findInstance(needle string, instance *ec2.Instance) bool {
+	if check(needle, instance.ImageId, instance.InstanceType) {
+		return true
+	}
+
+	for _, network := range instance.NetworkInterfaces {
+		for _, ip := range network.PrivateIpAddresses {
+			if check(needle, ip.PrivateIpAddress) {
+				return true
+			}
+		}
+		for _, ip := range network.Ipv6Addresses {
+			if check(needle, ip.Ipv6Address) {
+				return true
+			}
+		}
+		if network.Association != nil && check(needle, network.Association.PublicIp) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func check(needle string, haystack ...*string) bool {
+	for _, item := range haystack {
+		if strings.Contains(aws.StringValue(item), needle) {
+			return true
+		}
+	}
+	return false
 }
 
 type instanceLister interface {

@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindS3ByName(t *testing.T) {
+func TestFindS3Bucket(t *testing.T) {
 	var buf bytes.Buffer
-	findS3ByName(context.TODO(), "find", log.New(&buf, "", 0), &buckets{
+	findS3Bucket(context.TODO(), "find", log.New(&buf, "", 0), &buckets{
 		buckets: []*s3.Bucket{
 			{
 				Name: aws.String("foo"),
