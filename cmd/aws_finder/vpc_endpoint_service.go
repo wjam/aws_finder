@@ -27,7 +27,7 @@ func init() {
 	})
 }
 
-func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, client vpcEndpointLister) {
+func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, client vpcEndpointServiceLister) {
 	var next *string
 	for {
 		output, err := client.DescribeVpcEndpointServicesWithContext(ctx, &ec2.DescribeVpcEndpointServicesInput{
@@ -52,6 +52,6 @@ func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, c
 	}
 }
 
-type vpcEndpointLister interface {
+type vpcEndpointServiceLister interface {
 	DescribeVpcEndpointServicesWithContext(ctx aws.Context, input *ec2.DescribeVpcEndpointServicesInput, opts ...request.Option) (*ec2.DescribeVpcEndpointServicesOutput, error)
 }

@@ -74,10 +74,11 @@ func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f 
 		sess := newSession(region, profile)
 
 		l := log.New(parentLogger.Writer(), fmt.Sprintf("%s[%s] ", parentLogger.Prefix(), region), 0)
+		labelSet := pprof.Labels("region", region)
 
 		wg.Add(1)
 		go func() {
-			pprof.Do(ctx, pprof.Labels("region", region), func(ctx context.Context) {
+			pprof.Do(ctx, labelSet, func(ctx context.Context) {
 				defer wg.Done()
 				f(ctx, l, sess)
 			})

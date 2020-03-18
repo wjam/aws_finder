@@ -18,22 +18,23 @@ clean:
 	# Removing all generated files...
 	@rm -rf bin/ || true
 
-bin/:
-	@mkdir -p bin/
-
-bin/.vendor: bin/ go.mod go.sum
+bin/.vendor: go.mod go.sum
 	# Downloading modules...
 	@go mod download
+	@mkdir -p bin/
 	@touch bin/.vendor
 
-bin/.generate: $(go_files) bin/.vendor go.mod go.sum
+bin/.generate: $(go_files) bin/.vendor
 	@go generate ./...
 	@touch bin/.generate
 
 fmt: bin/.generate $(go_files)
 	# Formatting files...
-	@go mod tidy
 	@go run golang.org/x/tools/cmd/goimports -w $(go_files)
+
+bin/.vet: bin/.generate $(go_files)
+	go vet  ./...
+	@touch bin/.vet
 
 bin/.fmtcheck: bin/.generate $(go_files)
 	# Checking format of Go files...
@@ -50,16 +51,16 @@ bin/.coverage.out: bin/.generate $(go_files)
 coverage: bin/.coverage.out
 	@go tool cover -html=bin/.coverage.out
 
-$(local_bins): bin/.fmtcheck bin/.coverage.out $(go_files)
+$(local_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
 	CGO_ENABLED=0 go build -o $@ $(PACKAGE)/cmd/$(basename $(@F))
 
-$(mac_bins): bin/.fmtcheck bin/.coverage.out $(go_files)
+$(mac_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(subst $(mac_suffix),,$(@F)))
 
-$(linux_bins): bin/.fmtcheck bin/.coverage.out $(go_files)
+$(linux_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(subst $(linux_suffix),,$(@F)))
 
-$(windows_bins): bin/.fmtcheck bin/.coverage.out $(go_files)
+$(windows_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(subst $(windows_suffix),,$(@F)))
 
 $(release_dir)sha256sums.txt: $(mac_bins) $(linux_bins) $(windows_bins)

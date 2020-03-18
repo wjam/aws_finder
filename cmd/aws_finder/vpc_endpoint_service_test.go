@@ -52,7 +52,7 @@ func TestFindVpcEndpointService(t *testing.T) {
 	assert.Equal(t, "one to find\n", buf.String())
 }
 
-var _ vpcEndpointLister = &vpcEndpoints{}
+var _ vpcEndpointServiceLister = &vpcEndpoints{}
 
 type vpcEndpoints struct {
 	data map[string]ec2.DescribeVpcEndpointServicesOutput
