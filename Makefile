@@ -53,16 +53,16 @@ coverage: bin/.coverage.out
 	@go tool cover -html=bin/.coverage.out
 
 $(local_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
-	CGO_ENABLED=0 go build -o $@ $(PACKAGE)/cmd/$(basename $(@F))
+	CGO_ENABLED=0 go build -trimpath -o $@ $(PACKAGE)/cmd/$(basename $(@F))
 
 $(mac_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(subst $(mac_suffix),,$(@F)))
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -o $@ $(PACKAGE)/cmd/$(basename $(subst $(mac_suffix),,$(@F)))
 
 $(linux_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(subst $(linux_suffix),,$(@F)))
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o $@ $(PACKAGE)/cmd/$(basename $(subst $(linux_suffix),,$(@F)))
 
 $(windows_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $@ $(PACKAGE)/cmd/$(basename $(subst $(windows_suffix),,$(@F)))
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o $@ $(PACKAGE)/cmd/$(basename $(subst $(windows_suffix),,$(@F)))
 
 $(release_dir)sha256sums.txt: $(mac_bins) $(linux_bins) $(windows_bins)
 	@cd $(release_dir) && shasum -a 256 $(subst $(release_dir),,$^) > sha256sums.txt
