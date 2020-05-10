@@ -21,10 +21,7 @@ import (
 )
 
 func TestSearchPerRegion_Config(t *testing.T) {
-	configFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer os.Remove(configFile.Name())
-	err = ioutil.WriteFile(configFile.Name(), []byte(`
+	configFile := tempFile(t, `
 [profile default]
 foo = bar
 
@@ -36,14 +33,8 @@ foo = qux
 
 [profile region-failure]
 this = will-fail
-`), 0600)
-	require.NoError(t, err)
-	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
-	existingConfig := os.Getenv("AWS_CONFIG_FILE")
-	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
-	defer os.Setenv("AWS_CONFIG_FILE", existingCredentials)
-	err = os.Setenv("AWS_CONFIG_FILE", configFile.Name())
-	require.NoError(t, err)
+`)
+	setEnv(t, "AWS_CONFIG_FILE", configFile.Name())
 
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
@@ -87,10 +78,7 @@ this = will-fail
 }
 
 func TestSearch_Credentials(t *testing.T) {
-	credentialsFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer os.Remove(credentialsFile.Name())
-	err = ioutil.WriteFile(credentialsFile.Name(), []byte(`
+	credentialsFile := tempFile(t, `
 [default]
 aws_access_key_id=123
 aws_secret_access_key=321
@@ -102,14 +90,8 @@ aws_secret_access_key=321
 [baz]
 aws_access_key_id=123
 aws_secret_access_key=321
-`), 0600)
-	require.NoError(t, err)
-	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
-	existingConfig := os.Getenv("AWS_CONFIG_FILE")
-	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
-	defer os.Setenv("AWS_CONFIG_FILE", existingCredentials)
-	err = os.Setenv("AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
-	require.NoError(t, err)
+`)
+	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
 
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
@@ -142,15 +124,7 @@ aws_secret_access_key=321
 }
 
 func TestSearchPerRegion_ConfigAndCredentials(t *testing.T) {
-	credentialsFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer os.Remove(credentialsFile.Name())
-
-	configFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer os.Remove(configFile.Name())
-
-	err = ioutil.WriteFile(credentialsFile.Name(), []byte(`
+	credentialsFile := tempFile(t, `
 [default]
 aws_access_key_id=123
 aws_secret_access_key=321
@@ -162,25 +136,16 @@ aws_secret_access_key=321
 [baz]
 aws_access_key_id=123
 aws_secret_access_key=321
-`), 0600)
-	require.NoError(t, err)
-	err = ioutil.WriteFile(configFile.Name(), []byte(`
+`)
+	configFile := tempFile(t, `
 [profile dev]
 foo = baz
 
 [profile prod]
 foo = qux
-`), 0600)
-	require.NoError(t, err)
-
-	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
-	defer os.Setenv("AWS_SHARED_CREDENTIALS_FILE", existingCredentials)
-	err = os.Setenv("AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
-	require.NoError(t, err)
-	existingConfig := os.Getenv("AWS_CONFIG_FILE")
-	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
-	err = os.Setenv("AWS_CONFIG_FILE", configFile.Name())
-	require.NoError(t, err)
+`)
+	setEnv(t, "AWS_CONFIG_FILE", configFile.Name())
+	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
 
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
@@ -216,10 +181,7 @@ foo = qux
 }
 
 func TestSearchPerProfile_Config(t *testing.T) {
-	configFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	defer os.Remove(configFile.Name())
-	err = ioutil.WriteFile(configFile.Name(), []byte(`
+	configFile := tempFile(t, `
 [profile default]
 foo = bar
 
@@ -231,14 +193,8 @@ foo = qux
 
 [profile region-failure]
 this = will-fail
-`), 0600)
-	require.NoError(t, err)
-	existingCredentials := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
-	existingConfig := os.Getenv("AWS_CONFIG_FILE")
-	defer os.Setenv("AWS_CONFIG_FILE", existingConfig)
-	defer os.Setenv("AWS_CONFIG_FILE", existingCredentials)
-	err = os.Setenv("AWS_CONFIG_FILE", configFile.Name())
-	require.NoError(t, err)
+`)
+	setEnv(t, "AWS_CONFIG_FILE", configFile.Name())
 
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
@@ -273,14 +229,14 @@ var _ regionLister = &r{}
 type rFailure struct {
 }
 
-func (r *rFailure) DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, opts ...request.Option) (*ec2.DescribeRegionsOutput, error) {
+func (r *rFailure) DescribeRegionsWithContext(_ aws.Context, _ *ec2.DescribeRegionsInput, _ ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 	return nil, fmt.Errorf("something went wrong")
 }
 
 type r struct {
 }
 
-func (r *r) DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, opts ...request.Option) (*ec2.DescribeRegionsOutput, error) {
+func (r *r) DescribeRegionsWithContext(_ aws.Context, _ *ec2.DescribeRegionsInput, _ ...request.Option) (*ec2.DescribeRegionsOutput, error) {
 	return &ec2.DescribeRegionsOutput{
 		Regions: []*ec2.Region{
 			{
@@ -294,4 +250,28 @@ func (r *r) DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegio
 			},
 		},
 	}, nil
+}
+
+func tempFile(t *testing.T, content string) *os.File {
+	credentialsFile, err := ioutil.TempFile("", "")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := os.Remove(credentialsFile.Name())
+		assert.NoError(t, err)
+	})
+
+	err = ioutil.WriteFile(credentialsFile.Name(), []byte(content), 0600)
+	require.NoError(t, err)
+
+	return credentialsFile
+}
+
+func setEnv(t *testing.T, key, value string) {
+	existing := os.Getenv(key)
+	t.Cleanup(func() {
+		err := os.Setenv(key, existing)
+		assert.NoError(t, err)
+	})
+	err := os.Setenv(key, value)
+	require.NoError(t, err)
 }
