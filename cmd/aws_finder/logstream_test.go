@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindLogStream(t *testing.T) {
+func TestFindLogStream_AllLogGroups(t *testing.T) {
 	var buf bytes.Buffer
-	findLogStream(context.TODO(), "find", log.New(&buf, "", 0), &logStreams{
+	findLogStream(context.TODO(), nil, "find", log.New(&buf, "", 0), &logStreams{
 		logs: map[string][]*cloudwatchlogs.LogStream{
 			"first": {
 				{
@@ -45,16 +45,43 @@ func TestFindLogStream(t *testing.T) {
 	})
 
 	assert.Equal(t, "second/one to find\n", buf.String())
+}
 
+func TestFindLogStream_SpecificLogGroups(t *testing.T) {
+	var buf bytes.Buffer
+	findLogStream(context.TODO(), aws.String("expected-prefix"), "find", log.New(&buf, "", 0), &logStreams{
+		logStreamPrefix: "expected-prefix",
+		logs: map[string][]*cloudwatchlogs.LogStream{
+			"expected-prefix": {
+				{
+					LogStreamName: aws.String("not used"),
+				},
+				{
+					LogStreamName: aws.String("one to find"),
+				},
+			},
+		},
+	})
+
+	assert.Equal(t, "expected-prefix/one to find\n", buf.String())
 }
 
 var _ logStreamLister = &logStreams{}
 
 type logStreams struct {
-	logs map[string][]*cloudwatchlogs.LogStream
+	logStreamPrefix string
+	logs            map[string][]*cloudwatchlogs.LogStream
 }
 
-func (l *logStreams) DescribeLogGroupsPagesWithContext(_ aws.Context, _ *cloudwatchlogs.DescribeLogGroupsInput, f func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool, _ ...request.Option) error {
+func (l *logStreams) DescribeLogGroupsPagesWithContext(_ aws.Context, input *cloudwatchlogs.DescribeLogGroupsInput, f func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool, _ ...request.Option) error {
+	if l.logStreamPrefix != "" {
+		if aws.StringValue(input.LogGroupNamePrefix) != l.logStreamPrefix {
+			return fmt.Errorf("unexpected loggroupnameprefix: %s - %s", l.logStreamPrefix, aws.StringValue(input.LogGroupNamePrefix))
+		}
+	} else if input.LogGroupNamePrefix != nil {
+		return fmt.Errorf("unexpected loggroupnameprefix")
+	}
+
 	var groups []*cloudwatchlogs.LogGroup
 	for name := range l.logs {
 		groups = append(groups, &cloudwatchlogs.LogGroup{LogGroupName: aws.String(name)})

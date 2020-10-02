@@ -8,9 +8,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/setup-go@v1
+      - name: Install Go
+        uses: actions/setup-go@v1
         with:
           go-version: 1.14
-      - uses: actions/checkout@v1
-      - name: make
+      - name: Checkout Repository
+        uses: actions/checkout@v1
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: go
+      - name: Build
         run: make
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1

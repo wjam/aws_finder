@@ -18,21 +18,35 @@ import (
 
 func init() {
 	commands = append(commands, &cobra.Command{
-		Use:   "log_stream [needle]",
+		Use:   "log_stream <logGroupPrefix> [needle]",
 		Short: "Find a CloudWatch log stream by name",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
 			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
-				findLogStream(ctx, args[0], l, cloudwatchlogs.New(sess))
+				var group *string
+				var needle string
+				if len(args) == 1 {
+					needle = args[0]
+				} else {
+					group = aws.String(args[0])
+					needle = args[1]
+				}
+				if len(args) == 1 {
+					findLogStream(ctx, group, needle, l, cloudwatchlogs.New(sess))
+				} else {
+
+				}
 			})
 		},
 	})
 }
 
-func findLogStream(ctx context.Context, needle string, l *log.Logger, client logStreamLister) {
+func findLogStream(ctx context.Context, groupPrefix *string, needle string, l *log.Logger, client logStreamLister) {
 	var errs error
 
-	err := client.DescribeLogGroupsPagesWithContext(ctx, &cloudwatchlogs.DescribeLogGroupsInput{}, func(output *cloudwatchlogs.DescribeLogGroupsOutput, _ bool) bool {
+	err := client.DescribeLogGroupsPagesWithContext(ctx, &cloudwatchlogs.DescribeLogGroupsInput{
+		LogGroupNamePrefix: groupPrefix,
+	}, func(output *cloudwatchlogs.DescribeLogGroupsOutput, _ bool) bool {
 		for _, g := range output.LogGroups {
 			if err := findStream(ctx, needle, l, client, aws.StringValue(g.LogGroupName)); err != nil {
 				err = multierror.Append(errs, err)
