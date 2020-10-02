@@ -65,16 +65,18 @@ this = will-fail
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
 	})
 
-	require.Len(t, prefixes, 9)
-	assert.Contains(t, prefixes, "[default] [eu-west-1]")
-	assert.Contains(t, prefixes, "[default] [eu-west-2]")
-	assert.Contains(t, prefixes, "[default] [us-east-1]")
-	assert.Contains(t, prefixes, "[dev] [eu-west-1]")
-	assert.Contains(t, prefixes, "[dev] [eu-west-2]")
-	assert.Contains(t, prefixes, "[dev] [us-east-1]")
-	assert.Contains(t, prefixes, "[prod] [eu-west-1]")
-	assert.Contains(t, prefixes, "[prod] [eu-west-2]")
-	assert.Contains(t, prefixes, "[prod] [us-east-1]")
+	assert.ElementsMatch(t, prefixes, []string{
+		"[default] [eu-west-1]",
+		"[default] [eu-west-2]",
+		"[default] [us-east-1]",
+		"[dev] [eu-west-1]",
+		"[dev] [eu-west-2]",
+		"[dev] [us-east-1]",
+		"[prod] [eu-west-1]",
+		"[prod] [eu-west-2]",
+		"[prod] [us-east-1]",
+	})
+
 }
 
 func TestSearch_Credentials(t *testing.T) {
@@ -111,16 +113,17 @@ aws_secret_access_key=321
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
 	})
 
-	require.Len(t, prefixes, 9)
-	assert.Contains(t, prefixes, "[default] [eu-west-1]")
-	assert.Contains(t, prefixes, "[default] [eu-west-2]")
-	assert.Contains(t, prefixes, "[default] [us-east-1]")
-	assert.Contains(t, prefixes, "[dev] [eu-west-1]")
-	assert.Contains(t, prefixes, "[dev] [eu-west-2]")
-	assert.Contains(t, prefixes, "[dev] [us-east-1]")
-	assert.Contains(t, prefixes, "[baz] [eu-west-1]")
-	assert.Contains(t, prefixes, "[baz] [eu-west-2]")
-	assert.Contains(t, prefixes, "[baz] [us-east-1]")
+	assert.ElementsMatch(t, prefixes, []string{
+		"[default] [eu-west-1]",
+		"[default] [eu-west-2]",
+		"[default] [us-east-1]",
+		"[dev] [eu-west-1]",
+		"[dev] [eu-west-2]",
+		"[dev] [us-east-1]",
+		"[baz] [eu-west-1]",
+		"[baz] [eu-west-2]",
+		"[baz] [us-east-1]",
+	})
 }
 
 func TestSearchPerRegion_ConfigAndCredentials(t *testing.T) {
@@ -165,19 +168,20 @@ foo = qux
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
 	})
 
-	require.Len(t, prefixes, 12)
-	assert.Contains(t, prefixes, "[default] [eu-west-1]")
-	assert.Contains(t, prefixes, "[default] [eu-west-2]")
-	assert.Contains(t, prefixes, "[default] [us-east-1]")
-	assert.Contains(t, prefixes, "[dev] [eu-west-1]")
-	assert.Contains(t, prefixes, "[dev] [eu-west-2]")
-	assert.Contains(t, prefixes, "[dev] [us-east-1]")
-	assert.Contains(t, prefixes, "[baz] [eu-west-1]")
-	assert.Contains(t, prefixes, "[baz] [eu-west-2]")
-	assert.Contains(t, prefixes, "[baz] [us-east-1]")
-	assert.Contains(t, prefixes, "[prod] [eu-west-1]")
-	assert.Contains(t, prefixes, "[prod] [eu-west-2]")
-	assert.Contains(t, prefixes, "[prod] [us-east-1]")
+	assert.ElementsMatch(t, prefixes, []string{
+		"[default] [eu-west-1]",
+		"[default] [eu-west-2]",
+		"[default] [us-east-1]",
+		"[dev] [eu-west-1]",
+		"[dev] [eu-west-2]",
+		"[dev] [us-east-1]",
+		"[baz] [eu-west-1]",
+		"[baz] [eu-west-2]",
+		"[baz] [us-east-1]",
+		"[prod] [eu-west-1]",
+		"[prod] [eu-west-2]",
+		"[prod] [us-east-1]",
+	})
 }
 
 func TestSearchPerProfile_Config(t *testing.T) {
