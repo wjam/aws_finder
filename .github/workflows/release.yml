@@ -27,7 +27,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-      - uses: actions/upload-release-asset@v1.0.1
+      - uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -35,7 +35,7 @@ jobs:
           asset_path: ./bin/release/aws_finder-darwin-amd64
           asset_name: aws_finder-darwin-amd64
           asset_content_type: application/octet-stream
-      - uses: actions/upload-release-asset@v1.0.1
+      - uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -43,7 +43,7 @@ jobs:
           asset_path: ./bin/release/aws_finder-linux-amd64
           asset_name: aws_finder-linux-amd64
           asset_content_type: application/octet-stream
-      - uses: actions/upload-release-asset@v1.0.1
+      - uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -51,7 +51,7 @@ jobs:
           asset_path: ./bin/release/aws_finder-windows-amd64.exe
           asset_name: aws_finder-windows-amd64.exe
           asset_content_type: application/octet-stream
-      - uses: actions/upload-release-asset@v1.0.1
+      - uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
