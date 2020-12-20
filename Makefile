@@ -67,10 +67,15 @@ $(windows_bins): bin/.fmtcheck bin/.vet bin/.coverage.out $(go_files)
 $(release_dir)sha256sums.txt: $(mac_bins) $(linux_bins) $(windows_bins)
 	@cd $(release_dir) && shasum -a 256 $(subst $(release_dir),,$^) > sha256sums.txt
 
+bin/.license_check: $(linux_bins)
+	# Checking licenses
+	@go run github.com/uw-labs/lichen -config=./lichen.yml $(linux_bins)
+	@touch bin/.license_check
+
 linux: $(linux_bins)
 windows: $(windows_bins)
 mac: $(mac_bins)
 build: $(local_bins)
-release: linux windows mac $(release_dir)sha256sums.txt
+release: linux windows mac $(release_dir)sha256sums.txt bin/.license_check
 
 all: release build
