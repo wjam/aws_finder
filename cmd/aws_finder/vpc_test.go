@@ -44,7 +44,7 @@ func TestFindVpc(t *testing.T) {
 	assert.Equal(t, "one to find\n", buf.String())
 }
 
-var _ vpcLister = &vpcs{}
+var _ ec2.DescribeVpcsAPIClient = &vpcs{}
 
 type vpcs struct {
 	data [][]types.Vpc
