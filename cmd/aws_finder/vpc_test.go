@@ -5,19 +5,19 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindVpc(t *testing.T) {
 	var buf bytes.Buffer
 	findVpc(context.TODO(), "needle", log.New(&buf, "", 0), &vpcs{
-		data: [][]*ec2.Vpc{
+		data: [][]types.Vpc{
 			{
 				{
 					CidrBlock: aws.String("nope"),
@@ -47,21 +47,31 @@ func TestFindVpc(t *testing.T) {
 var _ vpcLister = &vpcs{}
 
 type vpcs struct {
-	data [][]*ec2.Vpc
+	data [][]types.Vpc
 }
 
-func (v *vpcs) DescribeVpcsPagesWithContext(ctx aws.Context, input *ec2.DescribeVpcsInput, fn func(*ec2.DescribeVpcsOutput, bool) bool, _ ...request.Option) error {
+func (v *vpcs) DescribeVpcs(ctx context.Context, input *ec2.DescribeVpcsInput, _ ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
 	if ctx == nil {
-		return fmt.Errorf("missing context")
+		return nil, fmt.Errorf("missing context")
 	}
 	if len(input.Filters) != 0 || len(input.VpcIds) != 0 {
-		return fmt.Errorf("invalid input")
+		return nil, fmt.Errorf("invalid input")
 	}
 
-	for _, page := range v.data {
-		if !fn(&ec2.DescribeVpcsOutput{Vpcs: page}, true) {
-			return fmt.Errorf("should always return true")
-		}
+	if len(v.data) == 0 {
+		return nil, fmt.Errorf("no more values")
 	}
-	return nil
+
+	var value []types.Vpc
+	value, v.data = v.data[0], v.data[1:]
+
+	var token *string
+	if len(v.data) != 0 {
+		token = aws.String(strconv.Itoa(len(v.data)))
+	}
+
+	return &ec2.DescribeVpcsOutput{
+		NextToken: token,
+		Vpcs:      value,
+	}, nil
 }

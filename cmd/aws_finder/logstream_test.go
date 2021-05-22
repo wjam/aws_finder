@@ -7,16 +7,16 @@ import (
 	"log"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	cloudwatchlogs2 "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindLogStream_AllLogGroups(t *testing.T) {
 	var buf bytes.Buffer
 	findLogStream(context.TODO(), nil, "find", log.New(&buf, "", 0), &logStreams{
-		logs: map[string][]*cloudwatchlogs.LogStream{
+		logs: map[string][]types.LogStream{
 			"first": {
 				{
 					LogStreamName: aws.String("skipped"),
@@ -51,7 +51,7 @@ func TestFindLogStream_SpecificLogGroups(t *testing.T) {
 	var buf bytes.Buffer
 	findLogStream(context.TODO(), aws.String("expected-prefix"), "find", log.New(&buf, "", 0), &logStreams{
 		logStreamPrefix: "expected-prefix",
-		logs: map[string][]*cloudwatchlogs.LogStream{
+		logs: map[string][]types.LogStream{
 			"expected-prefix": {
 				{
 					LogStreamName: aws.String("not used"),
@@ -70,36 +70,30 @@ var _ logStreamLister = &logStreams{}
 
 type logStreams struct {
 	logStreamPrefix string
-	logs            map[string][]*cloudwatchlogs.LogStream
+	logs            map[string][]types.LogStream
 }
 
-func (l *logStreams) DescribeLogGroupsPagesWithContext(_ aws.Context, input *cloudwatchlogs.DescribeLogGroupsInput, f func(*cloudwatchlogs.DescribeLogGroupsOutput, bool) bool, _ ...request.Option) error {
+func (l *logStreams) DescribeLogGroups(_ context.Context, input *cloudwatchlogs2.DescribeLogGroupsInput, _ ...func(*cloudwatchlogs2.Options)) (*cloudwatchlogs2.DescribeLogGroupsOutput, error) {
 	if l.logStreamPrefix != "" {
-		if aws.StringValue(input.LogGroupNamePrefix) != l.logStreamPrefix {
-			return fmt.Errorf("unexpected loggroupnameprefix: %s - %s", l.logStreamPrefix, aws.StringValue(input.LogGroupNamePrefix))
+		if aws.ToString(input.LogGroupNamePrefix) != l.logStreamPrefix {
+			return nil, fmt.Errorf("unexpected loggroupnameprefix: %s - %s", l.logStreamPrefix, aws.ToString(input.LogGroupNamePrefix))
 		}
 	} else if input.LogGroupNamePrefix != nil {
-		return fmt.Errorf("unexpected loggroupnameprefix")
+		return nil, fmt.Errorf("unexpected loggroupnameprefix")
 	}
 
-	var groups []*cloudwatchlogs.LogGroup
+	var groups []types.LogGroup
 	for name := range l.logs {
-		groups = append(groups, &cloudwatchlogs.LogGroup{LogGroupName: aws.String(name)})
+		groups = append(groups, types.LogGroup{LogGroupName: aws.String(name)})
 	}
 
-	if !f(&cloudwatchlogs.DescribeLogGroupsOutput{LogGroups: groups}, false) {
-		return fmt.Errorf("should always continue")
-	}
-
-	return nil
+	return &cloudwatchlogs2.DescribeLogGroupsOutput{
+		LogGroups: groups,
+	}, nil
 }
 
-func (l *logStreams) DescribeLogStreamsPagesWithContext(_ aws.Context, input *cloudwatchlogs.DescribeLogStreamsInput, f func(*cloudwatchlogs.DescribeLogStreamsOutput, bool) bool, _ ...request.Option) error {
-	streams := l.logs[aws.StringValue(input.LogGroupName)]
+func (l *logStreams) DescribeLogStreams(_ context.Context, input *cloudwatchlogs2.DescribeLogStreamsInput, _ ...func(*cloudwatchlogs2.Options)) (*cloudwatchlogs2.DescribeLogStreamsOutput, error) {
+	streams := l.logs[aws.ToString(input.LogGroupName)]
 
-	if !f(&cloudwatchlogs.DescribeLogStreamsOutput{LogStreams: streams}, false) {
-		return fmt.Errorf("should always continue")
-	}
-
-	return nil
+	return &cloudwatchlogs2.DescribeLogStreamsOutput{LogStreams: streams}, nil
 }

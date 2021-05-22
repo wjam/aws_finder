@@ -5,31 +5,31 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindInstance(t *testing.T) {
 	var tests = []struct {
-		reservations [][]*ec2.Reservation
+		reservations [][]types.Reservation
 		needle       string
 		expected     string
 	}{
 		{
-			[][]*ec2.Reservation{
+			[][]types.Reservation{
 				{
 					{
-						Instances: []*ec2.Instance{
+						Instances: []types.Instance{
 							{
 								InstanceId: aws.String("skipped"),
-								NetworkInterfaces: []*ec2.InstanceNetworkInterface{
+								NetworkInterfaces: []types.InstanceNetworkInterface{
 									{
-										PrivateIpAddresses: []*ec2.InstancePrivateIpAddress{
+										PrivateIpAddresses: []types.InstancePrivateIpAddress{
 											{
 												PrivateIpAddress: aws.String("nope"),
 											},
@@ -39,9 +39,9 @@ func TestFindInstance(t *testing.T) {
 							},
 							{
 								InstanceId: aws.String("found"),
-								NetworkInterfaces: []*ec2.InstanceNetworkInterface{
+								NetworkInterfaces: []types.InstanceNetworkInterface{
 									{
-										PrivateIpAddresses: []*ec2.InstancePrivateIpAddress{
+										PrivateIpAddresses: []types.InstancePrivateIpAddress{
 											{
 												PrivateIpAddress: aws.String("nope"),
 											},
@@ -60,15 +60,15 @@ func TestFindInstance(t *testing.T) {
 			"found",
 		},
 		{
-			[][]*ec2.Reservation{
+			[][]types.Reservation{
 				{
 					{
-						Instances: []*ec2.Instance{
+						Instances: []types.Instance{
 							{
 								InstanceId: aws.String("skipped"),
-								NetworkInterfaces: []*ec2.InstanceNetworkInterface{
+								NetworkInterfaces: []types.InstanceNetworkInterface{
 									{
-										Ipv6Addresses: []*ec2.InstanceIpv6Address{
+										Ipv6Addresses: []types.InstanceIpv6Address{
 											{
 												Ipv6Address: aws.String("not this one"),
 											},
@@ -81,9 +81,9 @@ func TestFindInstance(t *testing.T) {
 							},
 							{
 								InstanceId: aws.String("found"),
-								NetworkInterfaces: []*ec2.InstanceNetworkInterface{
+								NetworkInterfaces: []types.InstanceNetworkInterface{
 									{
-										Ipv6Addresses: []*ec2.InstanceIpv6Address{
+										Ipv6Addresses: []types.InstanceIpv6Address{
 											{
 												Ipv6Address: aws.String("skipped"),
 											},
@@ -102,15 +102,15 @@ func TestFindInstance(t *testing.T) {
 			"found",
 		},
 		{
-			[][]*ec2.Reservation{
+			[][]types.Reservation{
 				{
 					{
-						Instances: []*ec2.Instance{
+						Instances: []types.Instance{
 							{
 								InstanceId: aws.String("not reported"),
-								NetworkInterfaces: []*ec2.InstanceNetworkInterface{
+								NetworkInterfaces: []types.InstanceNetworkInterface{
 									{
-										Association: &ec2.InstanceNetworkInterfaceAssociation{
+										Association: &types.InstanceNetworkInterfaceAssociation{
 											PublicIp: aws.String("skipped"),
 										},
 									},
@@ -118,9 +118,9 @@ func TestFindInstance(t *testing.T) {
 							},
 							{
 								InstanceId: aws.String("found"),
-								NetworkInterfaces: []*ec2.InstanceNetworkInterface{
+								NetworkInterfaces: []types.InstanceNetworkInterface{
 									{
-										Association: &ec2.InstanceNetworkInterfaceAssociation{
+										Association: &types.InstanceNetworkInterfaceAssociation{
 											PublicIp: aws.String("public-ip"),
 										},
 									},
@@ -134,17 +134,17 @@ func TestFindInstance(t *testing.T) {
 			"found",
 		},
 		{
-			[][]*ec2.Reservation{
+			[][]types.Reservation{
 				{
 					{
-						Instances: []*ec2.Instance{
+						Instances: []types.Instance{
 							{
 								InstanceId:   aws.String("not reported"),
-								InstanceType: aws.String("something different"),
+								InstanceType: "something different",
 							},
 							{
 								InstanceId:   aws.String("found"),
-								InstanceType: aws.String("instance-type"),
+								InstanceType: "instance-type",
 							},
 						},
 					},
@@ -154,10 +154,10 @@ func TestFindInstance(t *testing.T) {
 			"found",
 		},
 		{
-			[][]*ec2.Reservation{
+			[][]types.Reservation{
 				{
 					{
-						Instances: []*ec2.Instance{
+						Instances: []types.Instance{
 							{
 								InstanceId: aws.String("not reported"),
 								ImageId:    aws.String("a public image"),
@@ -184,23 +184,27 @@ func TestFindInstance(t *testing.T) {
 	}
 }
 
-var _ instanceLister = &instances{}
+var _ ec2.DescribeInstancesAPIClient = &instances{}
 
 type instances struct {
-	reservations [][]*ec2.Reservation
+	reservations [][]types.Reservation
 }
 
-func (i *instances) DescribeInstancesPagesWithContext(ctx aws.Context, _ *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool, _ ...request.Option) error {
+func (i *instances) DescribeInstances(ctx context.Context, _ *ec2.DescribeInstancesInput, _ ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
 	if ctx == nil {
-		return fmt.Errorf("missing context")
-	}
-	for _, r := range i.reservations {
-		if !f(&ec2.DescribeInstancesOutput{
-			Reservations: r,
-		}, true) {
-			return fmt.Errorf("expected to search all instances")
-		}
+		return nil, fmt.Errorf("missing context")
 	}
 
-	return nil
+	var value []types.Reservation
+	value, i.reservations = i.reservations[0], i.reservations[1:]
+
+	var token *string
+	if len(i.reservations) != 0 {
+		token = aws.String(strconv.Itoa(len(i.reservations)))
+	}
+
+	return &ec2.DescribeInstancesOutput{
+		NextToken:    token,
+		Reservations: value,
+	}, nil
 }

@@ -7,16 +7,16 @@ import (
 	"log"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindS3Bucket(t *testing.T) {
 	var buf bytes.Buffer
 	findS3Bucket(context.TODO(), "find", log.New(&buf, "", 0), &buckets{
-		buckets: []*s3.Bucket{
+		buckets: []types.Bucket{
 			{
 				Name: aws.String("foo"),
 			},
@@ -27,7 +27,7 @@ func TestFindS3Bucket(t *testing.T) {
 				Name: aws.String("find me"),
 			},
 		},
-		bucketLocation: map[string]string{
+		bucketLocation: map[string]types.BucketLocationConstraint{
 			"foo":     "bip",
 			"bar":     "baz",
 			"find me": "found",
@@ -37,12 +37,14 @@ func TestFindS3Bucket(t *testing.T) {
 	assert.Equal(t, "[found] find me\n", buf.String())
 }
 
+var _ s3Lister = &buckets{}
+
 type buckets struct {
-	buckets        []*s3.Bucket
-	bucketLocation map[string]string
+	buckets        []types.Bucket
+	bucketLocation map[string]types.BucketLocationConstraint
 }
 
-func (b *buckets) ListBucketsWithContext(ctx aws.Context, _ *s3.ListBucketsInput, _ ...request.Option) (*s3.ListBucketsOutput, error) {
+func (b *buckets) ListBuckets(ctx context.Context, _ *s3.ListBucketsInput, _ ...func(*s3.Options)) (*s3.ListBucketsOutput, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("missing context")
 	}
@@ -52,12 +54,12 @@ func (b *buckets) ListBucketsWithContext(ctx aws.Context, _ *s3.ListBucketsInput
 	}, nil
 }
 
-func (b *buckets) GetBucketLocationWithContext(ctx aws.Context, input *s3.GetBucketLocationInput, _ ...request.Option) (*s3.GetBucketLocationOutput, error) {
+func (b *buckets) GetBucketLocation(ctx context.Context, params *s3.GetBucketLocationInput, _ ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("missing context")
 	}
-	if loc, ok := b.bucketLocation[aws.StringValue(input.Bucket)]; ok {
-		return &s3.GetBucketLocationOutput{LocationConstraint: aws.String(loc)}, nil
+	if loc, ok := b.bucketLocation[aws.ToString(params.Bucket)]; ok {
+		return &s3.GetBucketLocationOutput{LocationConstraint: loc}, nil
 	}
 
 	return nil, fmt.Errorf("invalid input")

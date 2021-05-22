@@ -10,12 +10,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,27 +37,23 @@ this = will-fail
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
 	}
-	ec2New = func(c client.ConfigProvider) regionLister {
-		if sess, ok := c.(*session.Session); ok {
-			if aws.StringValue(sess.Config.Endpoint) == "region-failure" {
-				return &rFailure{}
-			}
+	ec2New = func(c aws.Config) regionLister {
+		if c.ConfigSources[0] == "region-failure" {
+			return &rFailure{}
 		}
 		return &r{}
 	}
-	newSession = func(region string, profile string) *session.Session {
-		ret := &session.Session{
-			Config: &aws.Config{
-				Region:   aws.String(region),
-				Endpoint: aws.String(profile),
-			},
+	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+		ret := aws.Config{
+			Region:        region,
+			ConfigSources: []interface{}{profile},
 		}
-		return ret
+		return ret, nil
 	}
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
+	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -98,16 +92,16 @@ aws_secret_access_key=321
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
 	}
-	ec2New = func(client.ConfigProvider) regionLister {
+	ec2New = func(c aws.Config) regionLister {
 		return &r{}
 	}
-	newSession = func(string, string) *session.Session {
-		return nil
+	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+		return aws.Config{}, nil
 	}
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
+	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -153,16 +147,16 @@ foo = qux
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
 	}
-	ec2New = func(client.ConfigProvider) regionLister {
+	ec2New = func(c aws.Config) regionLister {
 		return &r{}
 	}
-	newSession = func(string, string) *session.Session {
-		return nil
+	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+		return aws.Config{}, nil
 	}
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
+	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -203,19 +197,17 @@ this = will-fail
 	osUserHomeDir = func() (string, error) {
 		return ioutil.TempDir("", "")
 	}
-	newSession = func(region string, profile string) *session.Session {
-		ret := &session.Session{
-			Config: &aws.Config{
-				Region:   aws.String(region),
-				Endpoint: aws.String(profile),
-			},
+	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+		ret := aws.Config{
+			Region:        region,
+			ConfigSources: []interface{}{profile},
 		}
-		return ret
+		return ret, nil
 	}
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerProfile(context.TODO(), func(ctx context.Context, l *log.Logger, _ *session.Session) {
+	SearchPerProfile(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -229,20 +221,21 @@ this = will-fail
 }
 
 var _ regionLister = &r{}
+var _ regionLister = &rFailure{}
 
 type rFailure struct {
 }
 
-func (r *rFailure) DescribeRegionsWithContext(_ aws.Context, _ *ec2.DescribeRegionsInput, _ ...request.Option) (*ec2.DescribeRegionsOutput, error) {
+func (r *rFailure) DescribeRegions(_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error) {
 	return nil, fmt.Errorf("something went wrong")
 }
 
 type r struct {
 }
 
-func (r *r) DescribeRegionsWithContext(_ aws.Context, _ *ec2.DescribeRegionsInput, _ ...request.Option) (*ec2.DescribeRegionsOutput, error) {
+func (r *r) DescribeRegions(_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error) {
 	return &ec2.DescribeRegionsOutput{
-		Regions: []*ec2.Region{
+		Regions: []types.Region{
 			{
 				RegionName: aws.String("eu-west-1"),
 			},

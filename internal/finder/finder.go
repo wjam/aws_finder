@@ -9,30 +9,28 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-
 	mapset "github.com/deckarep/golang-set"
 
-	"github.com/aws/aws-sdk-go/aws/client"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"gopkg.in/ini.v1"
 )
 
 // SearchPerRegion will call `f` for every region in every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerRegion(ctx context.Context, f func(context.Context, *log.Logger, *session.Session)) {
+func SearchPerRegion(ctx context.Context, f func(context.Context, *log.Logger, aws.Config)) {
 	perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) {
 		perRegion(ctx, profile, l, f)
 	})
 }
 
 // SearchPerProfile will call `f` for every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, *session.Session)) {
+func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, aws.Config)) {
 	perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) {
-		sess := newSession("eu-west-1", profile)
+		sess, err := newSession(ctx, "eu-west-1", profile)
+		if err != nil {
+			panic(err)
+		}
 		f(ctx, l, sess)
 	})
 }
@@ -62,7 +60,7 @@ func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger
 	wg.Wait()
 }
 
-func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f func(context.Context, *log.Logger, *session.Session)) {
+func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f func(context.Context, *log.Logger, aws.Config)) {
 	regions, err := regions(ctx, profile)
 	if err != nil {
 		parentLogger.Printf("Failed to lookup regions: %s", err)
@@ -71,7 +69,11 @@ func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f 
 
 	var wg sync.WaitGroup
 	for _, region := range regions {
-		sess := newSession(region, profile)
+		sess, err := newSession(ctx, region, profile)
+		if err != nil {
+			parentLogger.Printf("Failed to create session for %s: %s", region, err)
+			continue
+		}
 
 		l := log.New(parentLogger.Writer(), fmt.Sprintf("%s[%s] ", parentLogger.Prefix(), region), 0)
 		labelSet := pprof.Labels("region", region)
@@ -111,13 +113,13 @@ func profiles() (mapset.Set, error) {
 
 func profilesFromConfigFile() (mapset.Set, error) {
 	file, err := configFile()
-	config, err := ini.Load(file)
+	parsed, err := ini.Load(file)
 	if err != nil {
 		return nil, err
 	}
 
 	profiles := mapset.NewSet()
-	for _, section := range config.Sections() {
+	for _, section := range parsed.Sections() {
 		if !strings.HasPrefix(section.Name(), "profile ") {
 			continue
 		}
@@ -129,13 +131,13 @@ func profilesFromConfigFile() (mapset.Set, error) {
 
 func profilesFromCredentialsFile() (mapset.Set, error) {
 	file, err := credentialsFile()
-	config, err := ini.Load(file)
+	parsed, err := ini.Load(file)
 	if err != nil {
 		return nil, err
 	}
 
 	profiles := mapset.NewSet()
-	for _, section := range config.Sections() {
+	for _, section := range parsed.Sections() {
 		if section.Name() == ini.DefaultSection {
 			continue
 		}
@@ -146,9 +148,12 @@ func profilesFromCredentialsFile() (mapset.Set, error) {
 }
 
 func regions(ctx context.Context, profile string) ([]string, error) {
-	sess := newSession("eu-west-1", profile)
+	sess, err := newSession(ctx, "eu-west-1", profile)
+	if err != nil {
+		return nil, err
+	}
 
-	output, err := ec2New(sess).DescribeRegionsWithContext(ctx, &ec2.DescribeRegionsInput{})
+	output, err := ec2New(sess).DescribeRegions(ctx, &ec2.DescribeRegionsInput{})
 	if err != nil {
 		return nil, err
 	}
@@ -186,16 +191,18 @@ func credentialsFile() (string, error) {
 }
 
 // Things to be neutered when running in tests
-var ec2New = func(p client.ConfigProvider) regionLister {
-	return ec2.New(p)
+var ec2New = func(cfg aws.Config) regionLister {
+	return ec2.NewFromConfig(cfg)
 }
-var newSession = func(region, profile string) *session.Session {
-	return session.Must(session.NewSession(aws.NewConfig().
-		WithRegion(region).
-		WithCredentials(credentials.NewSharedCredentials("", profile))))
+var newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithSharedConfigProfile(profile))
+	if err != nil {
+		return aws.Config{}, err
+	}
+	return cfg, nil
 }
 var osUserHomeDir = os.UserHomeDir
 
 type regionLister interface {
-	DescribeRegionsWithContext(ctx aws.Context, input *ec2.DescribeRegionsInput, opts ...request.Option) (*ec2.DescribeRegionsOutput, error)
+	DescribeRegions(ctx context.Context, params *ec2.DescribeRegionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error)
 }

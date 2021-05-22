@@ -5,11 +5,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/resourcegroupstaggingapi"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
+	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +20,7 @@ func TestFindByTag(t *testing.T) {
 		t:      t,
 		key:    "tag-key",
 		values: []string{"value1", "value2"},
-		resources: [][]*resourcegroupstaggingapi.ResourceTagMapping{
+		resources: [][]types.ResourceTagMapping{
 			{
 				{
 					ResourceARN: aws.String("expected"),
@@ -31,37 +32,44 @@ func TestFindByTag(t *testing.T) {
 	assert.Equal(t, "expected\n", buf.String())
 }
 
-var _ tagPagination = &resourceTagLister{}
+var _ resourcegroupstaggingapi.GetResourcesAPIClient = &resourceTagLister{}
 
 type resourceTagLister struct {
 	t      *testing.T
 	key    string
 	values []string
 
-	resources [][]*resourcegroupstaggingapi.ResourceTagMapping
+	resources [][]types.ResourceTagMapping
 }
 
-func (r *resourceTagLister) GetResourcesPagesWithContext(ctx aws.Context, input *resourcegroupstaggingapi.GetResourcesInput, f func(*resourcegroupstaggingapi.GetResourcesOutput, bool) bool, _ ...request.Option) error {
+func (r *resourceTagLister) GetResources(ctx context.Context, input *resourcegroupstaggingapi.GetResourcesInput, _ ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
 	if ctx == nil {
-		return fmt.Errorf("missing context")
+		return nil, fmt.Errorf("missing context")
 	}
-	if aws.BoolValue(input.ExcludeCompliantResources) || len(input.ResourceTypeFilters) != 0 {
-		return fmt.Errorf("unexpected input")
+	if aws.ToBool(input.ExcludeCompliantResources) || len(input.ResourceTypeFilters) != 0 {
+		return nil, fmt.Errorf("unexpected input")
 	}
-	if !assert.ElementsMatch(r.t, r.values, aws.StringValueSlice(input.TagFilters[0].Values)) {
-		return fmt.Errorf("invalid values")
+	if !assert.ElementsMatch(r.t, r.values, input.TagFilters[0].Values) {
+		return nil, fmt.Errorf("invalid values")
 	}
-	if len(input.TagFilters) != 1 || aws.StringValue(input.TagFilters[0].Key) != r.key {
-		return fmt.Errorf("invalid input")
-	}
-
-	for _, resources := range r.resources {
-		if !f(&resourcegroupstaggingapi.GetResourcesOutput{
-			ResourceTagMappingList: resources,
-		}, true) {
-			return fmt.Errorf("should always continue")
-		}
+	if len(input.TagFilters) != 1 || aws.ToString(input.TagFilters[0].Key) != r.key {
+		return nil, fmt.Errorf("invalid input")
 	}
 
-	return nil
+	if len(r.resources) == 0 {
+		return nil, fmt.Errorf("no more values")
+	}
+
+	var value []types.ResourceTagMapping
+	value, r.resources = r.resources[0], r.resources[1:]
+
+	var token *string
+	if len(r.resources) != 0 {
+		token = aws.String(strconv.Itoa(len(r.resources)))
+	}
+
+	return &resourcegroupstaggingapi.GetResourcesOutput{
+		PaginationToken:        token,
+		ResourceTagMappingList: value,
+	}, nil
 }

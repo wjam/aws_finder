@@ -5,22 +5,24 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindVpcEndpoints(t *testing.T) {
 	var tests = []struct {
-		endpoints [][]*ec2.VpcEndpoint
+		endpoints [][]types.VpcEndpoint
 		needle    string
 		expected  string
 	}{
 		{
-			[][]*ec2.VpcEndpoint{
+			[][]types.VpcEndpoint{
 				{
 					{
 						VpcEndpointId: aws.String("not used"),
@@ -42,7 +44,7 @@ func TestFindVpcEndpoints(t *testing.T) {
 			"expected",
 		},
 		{
-			[][]*ec2.VpcEndpoint{
+			[][]types.VpcEndpoint{
 				{
 					{
 						VpcEndpointId: aws.String("not used"),
@@ -64,11 +66,11 @@ func TestFindVpcEndpoints(t *testing.T) {
 			"expected",
 		},
 		{
-			[][]*ec2.VpcEndpoint{
+			[][]types.VpcEndpoint{
 				{
 					{
 						VpcEndpointId: aws.String("unused"),
-						DnsEntries: []*ec2.DnsEntry{
+						DnsEntries: []types.DnsEntry{
 							{
 								DnsName: aws.String("example.org"),
 							},
@@ -76,7 +78,7 @@ func TestFindVpcEndpoints(t *testing.T) {
 					},
 					{
 						VpcEndpointId: aws.String("expected"),
-						DnsEntries: []*ec2.DnsEntry{
+						DnsEntries: []types.DnsEntry{
 							{
 								DnsName: aws.String("example.com"),
 							},
@@ -101,23 +103,30 @@ func TestFindVpcEndpoints(t *testing.T) {
 	}
 }
 
-var _ vpcEndpointPagination = &vpcEndpointLister{}
+var _ ec2.DescribeVpcEndpointsAPIClient = &vpcEndpointLister{}
 
 type vpcEndpointLister struct {
-	endpoints [][]*ec2.VpcEndpoint
+	endpoints [][]types.VpcEndpoint
 }
 
-func (v *vpcEndpointLister) DescribeVpcEndpointsPagesWithContext(ctx aws.Context, _ *ec2.DescribeVpcEndpointsInput, fn func(*ec2.DescribeVpcEndpointsOutput, bool) bool, _ ...request.Option) error {
+func (v *vpcEndpointLister) DescribeVpcEndpoints(ctx context.Context, _ *ec2.DescribeVpcEndpointsInput, _ ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error) {
 	if ctx == nil {
-		return fmt.Errorf("missing context")
+		return nil, fmt.Errorf("missing context")
 	}
-	for _, e := range v.endpoints {
-		if !fn(&ec2.DescribeVpcEndpointsOutput{
-			VpcEndpoints: e,
-		}, true) {
-			return fmt.Errorf("expected to search all instances")
-		}
+	if len(v.endpoints) == 0 {
+		return nil, fmt.Errorf("no more values")
 	}
 
-	return nil
+	var value []types.VpcEndpoint
+	value, v.endpoints = v.endpoints[0], v.endpoints[1:]
+
+	var token *string
+	if len(v.endpoints) != 0 {
+		token = aws.String(strconv.Itoa(len(v.endpoints)))
+	}
+
+	return &ec2.DescribeVpcEndpointsOutput{
+		NextToken:    token,
+		VpcEndpoints: value,
+	}, nil
 }
