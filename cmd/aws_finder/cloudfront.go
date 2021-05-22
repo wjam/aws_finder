@@ -4,10 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudfront"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
 )
@@ -18,32 +17,35 @@ func init() {
 		Short: "Find CloudFront distributions by domain",
 		Args:  cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
-				findCloudFrontDistributions(ctx, args[0], l, cloudfront.New(sess))
+			finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
+				findCloudFrontDistributions(ctx, args[0], l, cloudfront.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logger, client cloudFrontLister) {
-	err := client.ListDistributionsPagesWithContext(ctx, &cloudfront.ListDistributionsInput{}, func(output *cloudfront.ListDistributionsOutput, more bool) bool {
-		for _, dist := range output.DistributionList.Items {
+func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logger, client cloudfront.ListDistributionsAPIClient) {
+	pages := cloudfront.NewListDistributionsPaginator(client, &cloudfront.ListDistributionsInput{})
+
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
+		if err != nil {
+			l.Printf("Failed to query distributions: %s", err)
+			return
+		}
+
+		for _, dist := range page.DistributionList.Items {
 			if findCloudFrontDistribution(needle, dist) {
-				l.Println(aws.StringValue(dist.Id))
+				l.Println(aws.ToString(dist.Id))
 			}
 		}
-		return true
-	})
-	if err != nil {
-		l.Printf("Failed to query distributions: %s", err)
-		return
 	}
 }
 
-func findCloudFrontDistribution(needle string, dist *cloudfront.DistributionSummary) bool {
+func findCloudFrontDistribution(needle string, dist types.DistributionSummary) bool {
 	var values = []*string{dist.DomainName}
 	if dist.Aliases != nil && dist.Aliases.Items != nil {
-		values = append(values, dist.Aliases.Items...)
+		values = append(values, aws.StringSlice(dist.Aliases.Items)...)
 	}
 	if dist.Origins != nil {
 		for _, name := range dist.Origins.Items {
@@ -51,8 +53,4 @@ func findCloudFrontDistribution(needle string, dist *cloudfront.DistributionSumm
 		}
 	}
 	return check(needle, values...)
-}
-
-type cloudFrontLister interface {
-	ListDistributionsPagesWithContext(aws.Context, *cloudfront.ListDistributionsInput, func(*cloudfront.ListDistributionsOutput, bool) bool, ...request.Option) error
 }

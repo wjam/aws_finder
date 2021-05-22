@@ -5,12 +5,10 @@ import (
 	"log"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
 )
@@ -21,32 +19,34 @@ func init() {
 		Short: "Find an instance by type, AMI or ip address",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, sess *session.Session) {
-				findInstances(ctx, args[0], l, ec2.New(sess))
+			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
+				findInstances(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findInstances(ctx context.Context, needle string, l *log.Logger, client instanceLister) {
-	err := client.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{}, func(output *ec2.DescribeInstancesOutput, _ bool) bool {
-		for _, r := range output.Reservations {
+func findInstances(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeInstancesAPIClient) {
+	pages := ec2.NewDescribeInstancesPaginator(client, &ec2.DescribeInstancesInput{})
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
+		if err != nil {
+			l.Printf("Failed to query instances: %s", err)
+			return
+		}
+
+		for _, r := range page.Reservations {
 			for _, instance := range r.Instances {
 				if findInstance(needle, instance) {
-					l.Println(aws.StringValue(instance.InstanceId))
+					l.Println(aws.ToString(instance.InstanceId))
 				}
 			}
 		}
-		return true
-	})
-	if err != nil {
-		l.Printf("Failed to query instances: %s", err)
-		return
 	}
 }
 
-func findInstance(needle string, instance *ec2.Instance) bool {
-	if check(needle, instance.ImageId, instance.InstanceType) {
+func findInstance(needle string, instance types.Instance) bool {
+	if check(needle, instance.ImageId, aws.String(string(instance.InstanceType))) {
 		return true
 	}
 
@@ -71,13 +71,9 @@ func findInstance(needle string, instance *ec2.Instance) bool {
 
 func check(needle string, haystack ...*string) bool {
 	for _, item := range haystack {
-		if strings.Contains(aws.StringValue(item), needle) {
+		if strings.Contains(aws.ToString(item), needle) {
 			return true
 		}
 	}
 	return false
-}
-
-type instanceLister interface {
-	DescribeInstancesPagesWithContext(ctx aws.Context, input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool, opts ...request.Option) error
 }

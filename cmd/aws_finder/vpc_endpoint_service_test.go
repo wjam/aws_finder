@@ -7,10 +7,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func TestFindVpcEndpointService(t *testing.T) {
 		data: map[string]ec2.DescribeVpcEndpointServicesOutput{
 			"": {
 				NextToken: aws.String("next-one"),
-				ServiceDetails: []*ec2.ServiceDetail{
+				ServiceDetails: []types.ServiceDetail{
 					{
 						ServiceName: aws.String("first one"),
 					},
@@ -34,7 +33,7 @@ func TestFindVpcEndpointService(t *testing.T) {
 			},
 			"next-one": {
 				NextToken: nil,
-				ServiceDetails: []*ec2.ServiceDetail{
+				ServiceDetails: []types.ServiceDetail{
 					{
 						ServiceName: aws.String("ignored"),
 					},
@@ -58,12 +57,12 @@ type vpcEndpoints struct {
 	data map[string]ec2.DescribeVpcEndpointServicesOutput
 }
 
-func (v *vpcEndpoints) DescribeVpcEndpointServicesWithContext(ctx aws.Context, input *ec2.DescribeVpcEndpointServicesInput, _ ...request.Option) (*ec2.DescribeVpcEndpointServicesOutput, error) {
+func (v *vpcEndpoints) DescribeVpcEndpointServices(ctx context.Context, params *ec2.DescribeVpcEndpointServicesInput, _ ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointServicesOutput, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("missing context")
 	}
-	if data, ok := v.data[aws.StringValue(input.NextToken)]; ok {
+	if data, ok := v.data[aws.ToString(params.NextToken)]; ok {
 		return &data, nil
 	}
-	return nil, fmt.Errorf("unknown key %s", *input.NextToken)
+	return nil, fmt.Errorf("unknown key %s", *params.NextToken)
 }

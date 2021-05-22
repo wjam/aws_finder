@@ -5,28 +5,29 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/cloudfront"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
+	"github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindCloudFrontDistributions(t *testing.T) {
 	var tests = []struct {
-		distributions [][]*cloudfront.DistributionSummary
+		distributions [][]types.DistributionSummary
 		needle        string
 		expected      string
 	}{
 		{
-			[][]*cloudfront.DistributionSummary{
+			[][]types.DistributionSummary{
 				{
 					{
 						Id:         aws.String("unexpected"),
 						DomainName: aws.String("unused"),
-						Aliases:    &cloudfront.Aliases{},
-						Origins:    &cloudfront.Origins{},
+						Aliases:    &types.Aliases{},
+						Origins:    &types.Origins{},
 					},
 				},
 				{
@@ -40,23 +41,23 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 			"found",
 		},
 		{
-			[][]*cloudfront.DistributionSummary{
+			[][]types.DistributionSummary{
 				{
 					{
 						Id: aws.String("unused"),
-						Aliases: &cloudfront.Aliases{
-							Items: aws.StringSlice([]string{"something", "different"}),
+						Aliases: &types.Aliases{
+							Items: []string{"something", "different"},
 						},
-						Origins: &cloudfront.Origins{},
+						Origins: &types.Origins{},
 					},
 				},
 				{
 					{
 						Id: aws.String("found"),
-						Aliases: &cloudfront.Aliases{
-							Items: aws.StringSlice([]string{"not-this", "alias"}),
+						Aliases: &types.Aliases{
+							Items: []string{"not-this", "alias"},
 						},
-						Origins: &cloudfront.Origins{},
+						Origins: &types.Origins{},
 					},
 				},
 			},
@@ -64,11 +65,11 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 			"found",
 		},
 		{
-			[][]*cloudfront.DistributionSummary{
+			[][]types.DistributionSummary{
 				{
 					{
 						Id: aws.String("unused"),
-						Origins: &cloudfront.Origins{Items: []*cloudfront.Origin{
+						Origins: &types.Origins{Items: []types.Origin{
 							{
 								DomainName: aws.String("s3.domain"),
 							},
@@ -78,7 +79,7 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 				{
 					{
 						Id: aws.String("found"),
-						Origins: &cloudfront.Origins{Items: []*cloudfront.Origin{
+						Origins: &types.Origins{Items: []types.Origin{
 							{
 								DomainName: aws.String("s3.domain"),
 							},
@@ -103,22 +104,29 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 	}
 }
 
-var _ cloudFrontLister = &distributions{}
+var _ cloudfront.ListDistributionsAPIClient = &distributions{}
 
 type distributions struct {
-	distributions [][]*cloudfront.DistributionSummary
+	distributions [][]types.DistributionSummary
 }
 
-func (d *distributions) ListDistributionsPagesWithContext(ctx aws.Context, _ *cloudfront.ListDistributionsInput, f func(*cloudfront.ListDistributionsOutput, bool) bool, _ ...request.Option) error {
+func (d *distributions) ListDistributions(ctx context.Context, _ *cloudfront.ListDistributionsInput, _ ...func(*cloudfront.Options)) (*cloudfront.ListDistributionsOutput, error) {
 	if ctx == nil {
-		return fmt.Errorf("missing context")
+		return nil, fmt.Errorf("missing context")
 	}
-	for _, dist := range d.distributions {
-		if !f(&cloudfront.ListDistributionsOutput{
-			DistributionList: &cloudfront.DistributionList{Items: dist},
-		}, true) {
-			return fmt.Errorf("expected to continue")
-		}
+
+	var value []types.DistributionSummary
+	value, d.distributions = d.distributions[0], d.distributions[1:]
+
+	var token *string
+	if len(d.distributions) != 0 {
+		token = aws.String(strconv.Itoa(len(d.distributions)))
 	}
-	return nil
+
+	return &cloudfront.ListDistributionsOutput{
+		DistributionList: &types.DistributionList{
+			Items:      value,
+			NextMarker: token,
+		},
+	}, nil
 }
