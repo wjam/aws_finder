@@ -53,11 +53,12 @@ this = will-fail
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
+	assert.Error(t, SearchPerRegion(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-	})
+		return nil
+	}))
 
 	assert.ElementsMatch(t, prefixes, []string{
 		"[default] [eu-west-1]",
@@ -101,11 +102,12 @@ aws_secret_access_key=321
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
+	require.NoError(t, SearchPerRegion(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-	})
+		return nil
+	}))
 
 	assert.ElementsMatch(t, prefixes, []string{
 		"[default] [eu-west-1]",
@@ -156,11 +158,12 @@ foo = qux
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerRegion(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
+	require.NoError(t, SearchPerRegion(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-	})
+		return nil
+	}))
 
 	assert.ElementsMatch(t, prefixes, []string{
 		"[default] [eu-west-1]",
@@ -207,11 +210,12 @@ this = will-fail
 
 	var lock sync.RWMutex
 	var prefixes []string
-	SearchPerProfile(context.TODO(), func(ctx context.Context, l *log.Logger, _ aws.Config) {
+	require.NoError(t, SearchPerProfile(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-	})
+		return nil
+	}))
 
 	require.Len(t, prefixes, 4)
 	assert.Contains(t, prefixes, "[default]")

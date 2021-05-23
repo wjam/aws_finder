@@ -17,22 +17,21 @@ func init() {
 		Use:   "vpc [needle]",
 		Short: "Find a VPC with the given CIDR range",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findVpc(ctx, args[0], l, ec2.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findVpc(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findVpc(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeVpcsAPIClient) {
-	pages := ec2.NewDescribeVpcsPaginator(client, &ec2.DescribeVpcsInput{})
+func findVpc(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeVpcsAPIClient) error {
+	pages := ec2.NewDescribeVpcsPaginator(client, nil)
 
 	for pages.HasMorePages() {
 		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query VPCs: %s", err)
-			return
+			return logError("failed to query VPCs", err, l)
 		}
 
 		for _, vpc := range page.Vpcs {
@@ -41,4 +40,6 @@ func findVpc(ctx context.Context, needle string, l *log.Logger, client ec2.Descr
 			}
 		}
 	}
+
+	return nil
 }

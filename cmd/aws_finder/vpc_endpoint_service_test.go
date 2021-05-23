@@ -11,11 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindVpcEndpointService(t *testing.T) {
 	var buf bytes.Buffer
-	findVpcEndpointService(context.TODO(), "find", log.New(&buf, "", 0), &vpcEndpoints{
+	require.NoError(t, findVpcEndpointService(context.Background(), "find", log.New(&buf, "", 0), &vpcEndpoints{
 		data: map[string]ec2.DescribeVpcEndpointServicesOutput{
 			"": {
 				NextToken: aws.String("next-one"),
@@ -46,12 +47,12 @@ func TestFindVpcEndpointService(t *testing.T) {
 				},
 			},
 		},
-	})
+	}))
 
 	assert.Equal(t, "one to find\n", buf.String())
 }
 
-var _ vpcEndpointServiceLister = &vpcEndpoints{}
+var _ describeVpcEndpointServicesClient = &vpcEndpoints{}
 
 type vpcEndpoints struct {
 	data map[string]ec2.DescribeVpcEndpointServicesOutput

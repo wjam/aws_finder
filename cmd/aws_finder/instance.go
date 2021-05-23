@@ -18,21 +18,20 @@ func init() {
 		Use:   "instance [needle]",
 		Short: "Find an instance by type, AMI or ip address",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findInstances(ctx, args[0], l, ec2.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findInstances(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findInstances(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeInstancesAPIClient) {
-	pages := ec2.NewDescribeInstancesPaginator(client, &ec2.DescribeInstancesInput{})
+func findInstances(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeInstancesAPIClient) error {
+	pages := ec2.NewDescribeInstancesPaginator(client, nil)
 	for pages.HasMorePages() {
 		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query instances: %s", err)
-			return
+			return logError("failed to query instances", err, l)
 		}
 
 		for _, r := range page.Reservations {
@@ -43,6 +42,8 @@ func findInstances(ctx context.Context, needle string, l *log.Logger, client ec2
 			}
 		}
 	}
+
+	return nil
 }
 
 func findInstance(needle string, instance types.Instance) bool {

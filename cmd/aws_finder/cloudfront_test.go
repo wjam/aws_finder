@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindCloudFrontDistributions(t *testing.T) {
@@ -98,7 +99,7 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			findCloudFrontDistributions(context.TODO(), test.needle, log.New(&buf, "", 0), &distributions{test.distributions})
+			require.NoError(t, findCloudFrontDistributions(context.Background(), test.needle, log.New(&buf, "", 0), &distributions{test.distributions}))
 			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
 		})
 	}

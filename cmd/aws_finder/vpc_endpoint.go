@@ -17,22 +17,21 @@ func init() {
 		Use:   "vpc_endpoint [needle]",
 		Short: "Find a VPC endpoint by the given service name",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findVpcEndpoints(ctx, args[0], l, ec2.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findVpcEndpoints(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findVpcEndpoints(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeVpcEndpointsAPIClient) {
-	pages := ec2.NewDescribeVpcEndpointsPaginator(client, &ec2.DescribeVpcEndpointsInput{})
+func findVpcEndpoints(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeVpcEndpointsAPIClient) error {
+	pages := ec2.NewDescribeVpcEndpointsPaginator(client, nil)
 
 	for pages.HasMorePages() {
 		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query endpoints: %s", err)
-			return
+			return logError("failed to query endpoints", err, l)
 		}
 
 		for _, endpoint := range page.VpcEndpoints {
@@ -41,6 +40,8 @@ func findVpcEndpoints(ctx context.Context, needle string, l *log.Logger, client 
 			}
 		}
 	}
+
+	return nil
 }
 
 func findVpcEndpoint(needle string, endpoint types.VpcEndpoint) bool {

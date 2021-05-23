@@ -12,11 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindByTag(t *testing.T) {
 	var buf bytes.Buffer
-	findByTag(context.TODO(), &resourceTagLister{
+	require.NoError(t, findByTag(context.Background(), &resourceTagLister{
 		t:      t,
 		key:    "tag-key",
 		values: []string{"value1", "value2"},
@@ -27,7 +28,7 @@ func TestFindByTag(t *testing.T) {
 				},
 			},
 		},
-	}, log.New(&buf, "", 0), "tag-key", "value1", "value2")
+	}, log.New(&buf, "", 0), "tag-key", "value1", "value2"))
 
 	assert.Equal(t, "expected\n", buf.String())
 }

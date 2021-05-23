@@ -7,7 +7,9 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
-	"sync"
+
+	"github.com/hashicorp/go-multierror"
+	"golang.org/x/sync/errgroup"
 
 	mapset "github.com/deckarep/golang-set"
 
@@ -18,76 +20,81 @@ import (
 )
 
 // SearchPerRegion will call `f` for every region in every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerRegion(ctx context.Context, f func(context.Context, *log.Logger, aws.Config)) {
-	perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) {
-		perRegion(ctx, profile, l, f)
+func SearchPerRegion(ctx context.Context, f func(context.Context, *log.Logger, aws.Config) error) error {
+	return perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) error {
+		return perRegion(ctx, profile, l, f)
 	})
 }
 
 // SearchPerProfile will call `f` for every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, aws.Config)) {
-	perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) {
+func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, aws.Config) error) error {
+	return perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) error {
 		sess, err := newSession(ctx, "eu-west-1", profile)
 		if err != nil {
-			panic(err)
+			return err
 		}
-		f(ctx, l, sess)
+		return f(ctx, l, sess)
 	})
 }
 
-func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger)) {
+func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger) error) error {
 	profiles, err := profiles()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	var wg sync.WaitGroup
+	wg, ctx := errgroup.WithContext(ctx)
 
 	for _, profile := range profiles.ToSlice() {
 		// Shadow the for variable so that it's no longer a pointer, which will change before the go function is run
 		profile := profile.(string)
 		l := log.New(os.Stdout, fmt.Sprintf("[%s] ", profile), 0)
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() error {
+			var err error
 			pprof.Do(ctx, pprof.Labels("profile", profile), func(ctx context.Context) {
-				defer wg.Done()
-				f(ctx, profile, l)
+				err = f(ctx, profile, l)
 			})
-		}()
-
+			return err
+		})
 	}
-	wg.Wait()
+
+	return wg.Wait()
 }
 
-func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f func(context.Context, *log.Logger, aws.Config)) {
+func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f func(context.Context, *log.Logger, aws.Config) error) error {
 	regions, err := regions(ctx, profile)
 	if err != nil {
-		parentLogger.Printf("Failed to lookup regions: %s", err)
-		return
+		return fmt.Errorf("failed to lookup regions: %w", err)
 	}
 
-	var wg sync.WaitGroup
+	wg, ctx := errgroup.WithContext(ctx)
+
 	for _, region := range regions {
 		sess, err := newSession(ctx, region, profile)
 		if err != nil {
 			parentLogger.Printf("Failed to create session for %s: %s", region, err)
+			err = multierror.Append(err, fmt.Errorf("failed to create session for %s: %w", region, err))
 			continue
 		}
 
 		l := log.New(parentLogger.Writer(), fmt.Sprintf("%s[%s] ", parentLogger.Prefix(), region), 0)
 		labelSet := pprof.Labels("region", region)
 
-		wg.Add(1)
-		go func() {
+		wg.Go(func() error {
+			var err error
 			pprof.Do(ctx, labelSet, func(ctx context.Context) {
-				defer wg.Done()
-				f(ctx, l, sess)
+				err = f(ctx, l, sess)
 			})
-		}()
-
+			return err
+		})
 	}
-	wg.Wait()
+
+	if wgErr := wg.Wait(); wgErr != nil {
+		err = multierror.Append(err, wgErr)
+	}
+
+	return err
 }
 
 func profiles() (mapset.Set, error) {

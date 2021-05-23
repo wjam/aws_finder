@@ -16,22 +16,21 @@ func init() {
 		Use:   "cloudfront [needle]",
 		Short: "Find CloudFront distributions by domain",
 		Args:  cobra.RangeArgs(1, 2),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findCloudFrontDistributions(ctx, args[0], l, cloudfront.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findCloudFrontDistributions(ctx, args[0], l, cloudfront.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logger, client cloudfront.ListDistributionsAPIClient) {
-	pages := cloudfront.NewListDistributionsPaginator(client, &cloudfront.ListDistributionsInput{})
+func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logger, client cloudfront.ListDistributionsAPIClient) error {
+	pages := cloudfront.NewListDistributionsPaginator(client, nil)
 
 	for pages.HasMorePages() {
 		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query distributions: %s", err)
-			return
+			return logError("failed to query distributions", err, l)
 		}
 
 		for _, dist := range page.DistributionList.Items {
@@ -40,6 +39,8 @@ func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logg
 			}
 		}
 	}
+
+	return nil
 }
 
 func findCloudFrontDistribution(needle string, dist types.DistributionSummary) bool {

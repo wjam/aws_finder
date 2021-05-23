@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindInstance(t *testing.T) {
@@ -178,7 +179,7 @@ func TestFindInstance(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			findInstances(context.TODO(), test.needle, log.New(&buf, "", 0), &instances{test.reservations})
+			require.NoError(t, findInstances(context.Background(), test.needle, log.New(&buf, "", 0), &instances{test.reservations}))
 			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
 		})
 	}

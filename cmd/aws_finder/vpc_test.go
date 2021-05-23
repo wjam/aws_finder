@@ -12,11 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindVpc(t *testing.T) {
 	var buf bytes.Buffer
-	findVpc(context.TODO(), "needle", log.New(&buf, "", 0), &vpcs{
+	require.NoError(t, findVpc(context.Background(), "needle", log.New(&buf, "", 0), &vpcs{
 		data: [][]types.Vpc{
 			{
 				{
@@ -39,7 +40,7 @@ func TestFindVpc(t *testing.T) {
 				},
 			},
 		},
-	})
+	}))
 
 	assert.Equal(t, "one to find\n", buf.String())
 }

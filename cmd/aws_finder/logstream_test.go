@@ -11,11 +11,12 @@ import (
 	cloudwatchlogs2 "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindLogStream_AllLogGroups(t *testing.T) {
 	var buf bytes.Buffer
-	findLogStream(context.TODO(), nil, "find", log.New(&buf, "", 0), &logStreams{
+	require.NoError(t, findLogStream(context.Background(), nil, "find", log.New(&buf, "", 0), &logStreams{
 		logs: map[string][]types.LogStream{
 			"first": {
 				{
@@ -42,14 +43,14 @@ func TestFindLogStream_AllLogGroups(t *testing.T) {
 				},
 			},
 		},
-	})
+	}))
 
 	assert.Equal(t, "second/one to find\n", buf.String())
 }
 
 func TestFindLogStream_SpecificLogGroups(t *testing.T) {
 	var buf bytes.Buffer
-	findLogStream(context.TODO(), aws.String("expected-prefix"), "find", log.New(&buf, "", 0), &logStreams{
+	require.NoError(t, findLogStream(context.Background(), aws.String("expected-prefix"), "find", log.New(&buf, "", 0), &logStreams{
 		logStreamPrefix: "expected-prefix",
 		logs: map[string][]types.LogStream{
 			"expected-prefix": {
@@ -61,7 +62,7 @@ func TestFindLogStream_SpecificLogGroups(t *testing.T) {
 				},
 			},
 		},
-	})
+	}))
 
 	assert.Equal(t, "expected-prefix/one to find\n", buf.String())
 }

@@ -11,11 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindS3Bucket(t *testing.T) {
 	var buf bytes.Buffer
-	findS3Bucket(context.TODO(), "find", log.New(&buf, "", 0), &buckets{
+	require.NoError(t, findS3Bucket(context.Background(), "find", log.New(&buf, "", 0), &buckets{
 		buckets: []types.Bucket{
 			{
 				Name: aws.String("foo"),
@@ -32,7 +33,7 @@ func TestFindS3Bucket(t *testing.T) {
 			"bar":     "baz",
 			"find me": "found",
 		},
-	})
+	}))
 
 	assert.Equal(t, "[found] find me\n", buf.String())
 }
