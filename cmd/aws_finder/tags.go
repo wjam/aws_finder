@@ -16,15 +16,15 @@ func init() {
 		Use:   "tag [key] <value> <value>",
 		Short: "Find resources by tags",
 		Args:  cobra.RangeArgs(1, 2),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findByTag(ctx, resourcegroupstaggingapi.NewFromConfig(conf), l, args[0], args[1:]...)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findByTag(ctx, resourcegroupstaggingapi.NewFromConfig(conf), l, args[0], args[1:]...)
 			})
 		},
 	})
 }
 
-func findByTag(ctx context.Context, client resourcegroupstaggingapi.GetResourcesAPIClient, l *log.Logger, key string, values ...string) {
+func findByTag(ctx context.Context, client resourcegroupstaggingapi.GetResourcesAPIClient, l *log.Logger, key string, values ...string) error {
 	// TODO need to identify what type of resources the resourcegroupstaggingapi doesn't support
 
 	pages := resourcegroupstaggingapi.NewGetResourcesPaginator(client, &resourcegroupstaggingapi.GetResourcesInput{
@@ -39,11 +39,12 @@ func findByTag(ctx context.Context, client resourcegroupstaggingapi.GetResources
 	for pages.HasMorePages() {
 		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query tags: %s", err)
-			return
+			return logError("failed to query tags", err, l)
 		}
 		for _, resource := range page.ResourceTagMappingList {
 			l.Println(aws.ToString(resource.ResourceARN))
 		}
 	}
+
+	return nil
 }

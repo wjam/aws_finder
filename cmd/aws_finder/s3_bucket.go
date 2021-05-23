@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -18,19 +19,18 @@ func init() {
 		Use:   "s3_bucket [needle]",
 		Short: "Find an S3 bucket by name",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findS3Bucket(ctx, args[0], l, s3.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findS3Bucket(ctx, args[0], l, s3.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findS3Bucket(ctx context.Context, needle string, l *log.Logger, client s3Lister) {
-	buckets, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
+func findS3Bucket(ctx context.Context, needle string, l *log.Logger, client s3Lister) error {
+	buckets, err := client.ListBuckets(ctx, nil)
 	if err != nil {
-		l.Printf("Failed to query buckets: %s", err)
-		return
+		return logError("failed to query buckets", err, l)
 	}
 
 	for _, bucket := range buckets.Buckets {
@@ -38,8 +38,7 @@ func findS3Bucket(ctx context.Context, needle string, l *log.Logger, client s3Li
 
 			location, err := client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{Bucket: bucket.Name})
 			if err != nil {
-				l.Printf("Failed to query for bucket '%s' location: %s", aws.ToString(bucket.Name), err)
-				continue
+				return logError(fmt.Sprintf("failed to query for bucket '%s' location", aws.ToString(bucket.Name)), err, l)
 			}
 
 			if location.LocationConstraint == types.BucketLocationConstraintEu {
@@ -49,6 +48,8 @@ func findS3Bucket(ctx context.Context, needle string, l *log.Logger, client s3Li
 
 		}
 	}
+
+	return nil
 }
 
 type s3Lister interface {

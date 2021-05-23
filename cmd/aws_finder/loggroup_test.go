@@ -12,11 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindLogGroup(t *testing.T) {
 	var buf bytes.Buffer
-	findLogGroup(context.TODO(), "find", log.New(&buf, "", 0), &logGroups{
+	require.NoError(t, findLogGroup(context.Background(), "find", log.New(&buf, "", 0), &logGroups{
 		data: [][]types.LogGroup{
 			{
 				{
@@ -35,7 +36,7 @@ func TestFindLogGroup(t *testing.T) {
 				},
 			},
 		},
-	})
+	}))
 
 	assert.Equal(t, "one to find\n", buf.String())
 }

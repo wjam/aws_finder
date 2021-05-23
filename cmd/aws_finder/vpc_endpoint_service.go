@@ -16,39 +16,29 @@ func init() {
 		Use:   "vpc_endpoint_service [needle]",
 		Short: "Find a VPC endpoint service by the given service name",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findVpcEndpointService(ctx, args[0], l, ec2.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findVpcEndpointService(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, client vpcEndpointServiceLister) {
-	var next *string
-	for {
-		output, err := client.DescribeVpcEndpointServices(ctx, &ec2.DescribeVpcEndpointServicesInput{
-			NextToken: next,
-		})
+func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, client describeVpcEndpointServicesClient) error {
+	pages := newDescribeVpcEndpointServicesPaginator(client, nil)
+
+	for pages.HasMorePages() {
+		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query vpc endpoint services: %s", err)
-			return
+			return logError("failed to query vpc endpoint services", err, l)
 		}
 
-		for _, svc := range output.ServiceDetails {
+		for _, svc := range page.ServiceDetails {
 			if strings.Contains(*svc.ServiceName, needle) {
 				l.Printf(*svc.ServiceName)
 			}
 		}
-
-		next = output.NextToken
-
-		if next == nil {
-			break
-		}
 	}
-}
 
-type vpcEndpointServiceLister interface {
-	DescribeVpcEndpointServices(ctx context.Context, params *ec2.DescribeVpcEndpointServicesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointServicesOutput, error)
+	return nil
 }

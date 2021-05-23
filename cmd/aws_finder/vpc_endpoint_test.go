@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -97,7 +98,7 @@ func TestFindVpcEndpoints(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			findVpcEndpoints(context.TODO(), test.needle, log.New(&buf, "", 0), &vpcEndpointLister{test.endpoints})
+			require.NoError(t, findVpcEndpoints(context.Background(), test.needle, log.New(&buf, "", 0), &vpcEndpointLister{test.endpoints}))
 			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
 		})
 	}

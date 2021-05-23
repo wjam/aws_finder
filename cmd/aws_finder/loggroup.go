@@ -17,22 +17,21 @@ func init() {
 		Use:   "log_group [needle]",
 		Short: "Find a CloudWatch log group by name",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) {
-				findLogGroup(ctx, args[0], l, cloudwatchlogs.NewFromConfig(conf))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+				return findLogGroup(ctx, args[0], l, cloudwatchlogs.NewFromConfig(conf))
 			})
 		},
 	})
 }
 
-func findLogGroup(ctx context.Context, needle string, l *log.Logger, client cloudwatchlogs.DescribeLogGroupsAPIClient) {
-	pages := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, &cloudwatchlogs.DescribeLogGroupsInput{})
+func findLogGroup(ctx context.Context, needle string, l *log.Logger, client cloudwatchlogs.DescribeLogGroupsAPIClient) error {
+	pages := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, nil)
 
 	for pages.HasMorePages() {
 		page, err := pages.NextPage(ctx)
 		if err != nil {
-			l.Printf("Failed to query instances: %s", err)
-			return
+			return logError("failed to query instances", err, l)
 		}
 
 		for _, g := range page.LogGroups {
@@ -41,4 +40,6 @@ func findLogGroup(ctx context.Context, needle string, l *log.Logger, client clou
 			}
 		}
 	}
+
+	return nil
 }

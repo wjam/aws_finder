@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -45,4 +46,9 @@ source <(%[1]s completion zsh)
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func logError(message string, err error, l *log.Logger) error {
+	l.Printf(fmt.Sprintf("%s: %s", message, err))
+	return fmt.Errorf("%s: %w", message, err)
 }
