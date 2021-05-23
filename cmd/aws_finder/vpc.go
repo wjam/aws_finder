@@ -25,7 +25,7 @@ func init() {
 	})
 }
 
-func findVpc(ctx context.Context, needle string, l *log.Logger, client vpcLister) {
+func findVpc(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeVpcsAPIClient) {
 	pages := ec2.NewDescribeVpcsPaginator(client, &ec2.DescribeVpcsInput{})
 
 	for pages.HasMorePages() {
@@ -41,8 +41,4 @@ func findVpc(ctx context.Context, needle string, l *log.Logger, client vpcLister
 			}
 		}
 	}
-}
-
-type vpcLister interface {
-	DescribeVpcs(context.Context, *ec2.DescribeVpcsInput, ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error)
 }
