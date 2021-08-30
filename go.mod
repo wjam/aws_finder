@@ -3,11 +3,11 @@ module github.com/wjam/aws_finder
 go 1.16
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.7.0
+	github.com/aws/aws-sdk-go-v2 v1.9.0
 	github.com/aws/aws-sdk-go-v2/config v1.4.1
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.6.0
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.5.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.11.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.15.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.4.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.11.0
 	github.com/deckarep/golang-set v1.7.1
