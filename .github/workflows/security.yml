@@ -1,6 +1,8 @@
 name: Security Scan
 permissions:
   contents: read
+  security-events: write
+  pull-requests: read
 
 on:
   push:
