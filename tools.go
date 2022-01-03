@@ -1,3 +1,4 @@
+//go:build tools
 // +build tools
 
 package aws_finder
