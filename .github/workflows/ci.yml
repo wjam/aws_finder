@@ -27,6 +27,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-${{ env.GO_VERSION }}
       - name: Checkout Repository
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
       - name: Build
         run: make
