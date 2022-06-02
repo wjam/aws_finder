@@ -3,9 +3,9 @@ package finder
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -32,10 +32,10 @@ foo = qux
 [profile region-failure]
 this = will-fail
 `)
-	setEnv(t, "AWS_CONFIG_FILE", configFile.Name())
+	setEnv(t, "AWS_CONFIG_FILE", configFile)
 
 	osUserHomeDir = func() (string, error) {
-		return ioutil.TempDir("", "")
+		return t.TempDir(), nil
 	}
 	ec2New = func(c aws.Config) regionLister {
 		if c.ConfigSources[0] == "region-failure" {
@@ -88,10 +88,10 @@ aws_secret_access_key=321
 aws_access_key_id=123
 aws_secret_access_key=321
 `)
-	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
+	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile)
 
 	osUserHomeDir = func() (string, error) {
-		return ioutil.TempDir("", "")
+		return t.TempDir(), nil
 	}
 	ec2New = func(c aws.Config) regionLister {
 		return &r{}
@@ -143,11 +143,11 @@ foo = baz
 [profile prod]
 foo = qux
 `)
-	setEnv(t, "AWS_CONFIG_FILE", configFile.Name())
-	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile.Name())
+	setEnv(t, "AWS_CONFIG_FILE", configFile)
+	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile)
 
 	osUserHomeDir = func() (string, error) {
-		return ioutil.TempDir("", "")
+		return t.TempDir(), nil
 	}
 	ec2New = func(c aws.Config) regionLister {
 		return &r{}
@@ -195,10 +195,10 @@ foo = qux
 [profile region-failure]
 this = will-fail
 `)
-	setEnv(t, "AWS_CONFIG_FILE", configFile.Name())
+	setEnv(t, "AWS_CONFIG_FILE", configFile)
 
 	osUserHomeDir = func() (string, error) {
-		return ioutil.TempDir("", "")
+		return t.TempDir(), nil
 	}
 	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
 		ret := aws.Config{
@@ -253,18 +253,14 @@ func (r *r) DescribeRegions(_ context.Context, _ *ec2.DescribeRegionsInput, _ ..
 	}, nil
 }
 
-func tempFile(t *testing.T, content string) *os.File {
-	credentialsFile, err := ioutil.TempFile("", "")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := os.Remove(credentialsFile.Name())
-		assert.NoError(t, err)
-	})
+func tempFile(t *testing.T, content string) string {
+	dir := t.TempDir()
 
-	err = ioutil.WriteFile(credentialsFile.Name(), []byte(content), 0600)
-	require.NoError(t, err)
+	credentialFile := filepath.Join(dir, "credentials")
 
-	return credentialsFile
+	require.NoError(t, os.WriteFile(credentialFile, []byte(content), 0600))
+
+	return credentialFile
 }
 
 func setEnv(t *testing.T, key, value string) {
