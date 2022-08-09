@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	golang.org/x/tools v0.1.10
-	gopkg.in/ini.v1 v1.66.4
+	gopkg.in/ini.v1 v1.67.0
 )
 
 require (
