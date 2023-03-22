@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/errgroup"
 
-	mapset "github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -47,7 +47,7 @@ func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger
 
 	for _, profile := range profiles.ToSlice() {
 		// Shadow the for variable so that it's no longer a pointer, which will change before the go function is run
-		profile := profile.(string)
+		profile := profile
 		l := log.New(os.Stdout, fmt.Sprintf("[%s] ", profile), 0)
 
 		wg.Go(func() error {
@@ -97,7 +97,7 @@ func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f 
 	return err
 }
 
-func profiles() (mapset.Set, error) {
+func profiles() (mapset.Set[string], error) {
 	configProfiles, err := profilesFromConfigFile()
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -108,7 +108,7 @@ func profiles() (mapset.Set, error) {
 		return nil, err
 	}
 
-	profiles := mapset.NewSet()
+	profiles := mapset.NewSet[string]()
 	if configProfiles != nil {
 		profiles = profiles.Union(configProfiles)
 	}
@@ -118,14 +118,14 @@ func profiles() (mapset.Set, error) {
 	return profiles, nil
 }
 
-func profilesFromConfigFile() (mapset.Set, error) {
+func profilesFromConfigFile() (mapset.Set[string], error) {
 	file, err := configFile()
 	parsed, err := ini.Load(file)
 	if err != nil {
 		return nil, err
 	}
 
-	profiles := mapset.NewSet()
+	profiles := mapset.NewSet[string]()
 	for _, section := range parsed.Sections() {
 		if !strings.HasPrefix(section.Name(), "profile ") {
 			continue
@@ -136,14 +136,14 @@ func profilesFromConfigFile() (mapset.Set, error) {
 	return profiles, nil
 }
 
-func profilesFromCredentialsFile() (mapset.Set, error) {
+func profilesFromCredentialsFile() (mapset.Set[string], error) {
 	file, err := credentialsFile()
 	parsed, err := ini.Load(file)
 	if err != nil {
 		return nil, err
 	}
 
-	profiles := mapset.NewSet()
+	profiles := mapset.NewSet[string]()
 	for _, section := range parsed.Sections() {
 		if section.Name() == ini.DefaultSection {
 			continue
