@@ -3,7 +3,7 @@
 
 release_dir := bin/release/
 go_files := $(shell find . -path ./vendor -prune -o -path '*/testdata' -prune -o -type f -name '*.go' -print)
-commands := $(shell go list -json ./... | jq -r '. | select(.Name == "main") | .Dir[(.Root | length) + 1:]')
+commands := $(shell go list -json ./... | jq -r '. | select(.Name == "main") | .Dir[(.Root | length) + 1:] | sub("^cmd/"; "")')
 local_bins := $(addprefix bin/,$(commands))
 mac_amd64_suffix := -darwin-amd64
 mac_amd64_bins := $(addsuffix $(mac_amd64_suffix),$(addprefix $(release_dir),$(commands)))
