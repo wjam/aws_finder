@@ -46,7 +46,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./bin/release/aws_finder-darwin-arm64
-          asset_name: aws_finder-darwin-amd64
+          asset_name: aws_finder-darwin-arm64
           asset_content_type: application/octet-stream
       - uses: actions/upload-release-asset@v1.0.2
         env:
@@ -62,7 +62,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./bin/release/aws_finder-linux-arm64
-          asset_name: aws_finder-linux-amd64
+          asset_name: aws_finder-linux-arm64
           asset_content_type: application/octet-stream
       - uses: actions/upload-release-asset@v1.0.2
         env:
