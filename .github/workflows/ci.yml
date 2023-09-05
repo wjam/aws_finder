@@ -2,7 +2,14 @@ name: CI
 permissions:
   contents: read
 
-on: [push]
+on:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "master"
+
 
 jobs:
   build:
@@ -19,6 +26,7 @@ jobs:
           cache: true
       - name: Build
         run: make
+
 
   dependabot:
     needs:
