@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.26.0
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.129.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.17.0
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.41.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.42.0
 	github.com/deckarep/golang-set/v2 v2.3.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/spf13/cobra v1.7.0
@@ -26,11 +26,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.2.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.5.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.4.0 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.2.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.16.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.2.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.16.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.16.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.18.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.24.0 // indirect
