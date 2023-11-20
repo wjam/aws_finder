@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.27.1
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.135.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.18.2
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.42.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.43.0
 	github.com/deckarep/golang-set/v2 v2.3.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/spf13/cobra v1.8.0
