@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.25.12
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.32.3
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.29.3
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.139.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.140.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.19.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.3
 	github.com/deckarep/golang-set/v2 v2.5.0
