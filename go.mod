@@ -3,10 +3,10 @@ module github.com/wjam/aws_finder
 go 1.21.0
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.25.1
+	github.com/aws/aws-sdk-go-v2 v1.25.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.3
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.35.0
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.34.0
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.34.1
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.149.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.21.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.51.0
@@ -23,8 +23,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.3 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.15.1 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.1 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.1 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.2 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.1 // indirect
