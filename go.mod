@@ -13,7 +13,7 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/spf13/cobra v1.8.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/tools v0.18.0
 	gopkg.in/ini.v1 v1.67.0
