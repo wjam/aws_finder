@@ -20,8 +20,8 @@ github.com/aws/aws-sdk-go-v2/service/cloudfront v1.35.1 h1:svIAj0MQHRi8tbEhLAVmz
 github.com/aws/aws-sdk-go-v2/service/cloudfront v1.35.1/go.mod h1:m6lC61MrqoPdj7DHdlHp5NwbiEkoZOdrT8WuDPkkUv4=
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.34.2 h1:se/7nbFme5TynJQBKHbH6hfskOaELsfVzXVHfqqeUrs=
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.34.2/go.mod h1:Sh1CtJhB9RWJYiAC1ftPL/okZl4sI82tJ2O8evbUlIs=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.149.1 h1:OGZUMBYZnz+R5nkW6FS1J8UlfLeM/pKojck+74+ZQGY=
-github.com/aws/aws-sdk-go-v2/service/ec2 v1.149.1/go.mod h1:XxJNg7fIkR8cbm89i0zVZSxKpcPYsC8BWRwMIJOWbnk=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.149.2 h1:fkyeLQZoBqfchqru+hDTfioQohQRjpWLEVspbLwOMm8=
+github.com/aws/aws-sdk-go-v2/service/ec2 v1.149.2/go.mod h1:XxJNg7fIkR8cbm89i0zVZSxKpcPYsC8BWRwMIJOWbnk=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.1 h1:EyBZibRTVAs6ECHZOw5/wlylS9OcTzwyjeQMudmREjE=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.1/go.mod h1:JKpmtYhhPs7D97NL/ltqz7yCkERFW5dOlHyVl66ZYF8=
 github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.3.2 h1:zSdTXYLwuXDNPUS+V41i1SFDXG7V0ITp0D9UT9Cvl18=
