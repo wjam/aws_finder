@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.27.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.15
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.36.3
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.35.3
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.35.4
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.161.3
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.21.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.2
