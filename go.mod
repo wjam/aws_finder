@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.30.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.22
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.38.2
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.37.0
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.37.1
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.167.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.23.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.57.0
@@ -20,7 +20,7 @@ require (
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.2 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.3 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.22 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.8 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.13 // indirect
