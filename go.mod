@@ -15,7 +15,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/sync v0.8.0
-	golang.org/x/tools v0.23.0
+	golang.org/x/tools v0.24.0
 	gopkg.in/ini.v1 v1.67.0
 )
 
@@ -41,6 +41,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/mod v0.19.0 // indirect
+	golang.org/x/mod v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
