@@ -4,7 +4,7 @@ go 1.21.0
 toolchain go1.22.5
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.32.0
+	github.com/aws/aws-sdk-go-v2 v1.32.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.41
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.40.0
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.41.0
