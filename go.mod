@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.41
 	github.com/aws/aws-sdk-go-v2/service/cloudfront v1.40.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.41.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.181.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.181.1
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.25.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.65.0
 	github.com/deckarep/golang-set/v2 v2.6.0
@@ -30,7 +30,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.19 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.4.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.0 // indirect
