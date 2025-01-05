@@ -33,7 +33,7 @@ func (p *describeVpcEndpointServicesPaginator) HasMorePages() bool {
 	return p.firstPage || p.nextToken != nil
 }
 
-func (p *describeVpcEndpointServicesPaginator) NextPage(ctx context.Context) (*ec2.DescribeVpcEndpointServicesOutput, error) {
+func (p *describeVpcEndpointServicesPaginator) NextPage(ctx context.Context, _ ...func(string)) (*ec2.DescribeVpcEndpointServicesOutput, error) {
 	if !p.HasMorePages() {
 		return nil, fmt.Errorf("no more pages available")
 	}

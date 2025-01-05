@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"iter"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
 )
@@ -27,18 +30,22 @@ func init() {
 func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, client describeVpcEndpointServicesClient) error {
 	pages := newDescribeVpcEndpointServicesPaginator(client, nil)
 
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+	seq := paginatorToSeq(ctx, pages, vpcEndpointServicesToServiceDetail)
+	seq = filter2(func(svc types.ServiceDetail, err error) bool {
+		return err != nil || strings.Contains(*svc.ServiceName, needle)
+	}, seq)
+
+	for svc, err := range seq {
 		if err != nil {
 			return logError("failed to query vpc endpoint services", err, l)
 		}
 
-		for _, svc := range page.ServiceDetails {
-			if strings.Contains(*svc.ServiceName, needle) {
-				l.Printf(*svc.ServiceName)
-			}
-		}
+		l.Printf(*svc.ServiceName)
 	}
 
 	return nil
+}
+
+func vpcEndpointServicesToServiceDetail(r *ec2.DescribeVpcEndpointServicesOutput) iter.Seq[types.ServiceDetail] {
+	return slices.Values(r.ServiceDetails)
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"iter"
 	"log"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -28,20 +30,23 @@ func init() {
 func findVpcEndpoints(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeVpcEndpointsAPIClient) error {
 	pages := ec2.NewDescribeVpcEndpointsPaginator(client, nil)
 
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+	seq := paginatorToSeq(ctx, pages, vpcEndpointsToVpcEndpoint)
+	seq = filter2(func(endpoint types.VpcEndpoint, err error) bool {
+		return err != nil || findVpcEndpoint(needle, endpoint)
+	}, seq)
+
+	for endpoint, err := range seq {
 		if err != nil {
 			return logError("failed to query endpoints", err, l)
 		}
-
-		for _, endpoint := range page.VpcEndpoints {
-			if findVpcEndpoint(needle, endpoint) {
-				l.Println(aws.ToString(endpoint.VpcEndpointId))
-			}
-		}
+		l.Println(aws.ToString(endpoint.VpcEndpointId))
 	}
 
 	return nil
+}
+
+func vpcEndpointsToVpcEndpoint(r *ec2.DescribeVpcEndpointsOutput) iter.Seq[types.VpcEndpoint] {
+	return slices.Values(r.VpcEndpoints)
 }
 
 func findVpcEndpoint(needle string, endpoint types.VpcEndpoint) bool {

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"iter"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -28,22 +30,29 @@ func init() {
 
 func findInstances(ctx context.Context, needle string, l *log.Logger, client ec2.DescribeInstancesAPIClient) error {
 	pages := ec2.NewDescribeInstancesPaginator(client, nil)
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+
+	seq := paginatorToSeq(ctx, pages, ec2DescribeInstancesToInstances)
+	seq = filter2(func(instance types.Instance, err error) bool {
+		return err != nil || findInstance(needle, instance)
+	}, seq)
+
+	for instance, err := range seq {
 		if err != nil {
 			return logError("failed to query instances", err, l)
 		}
 
-		for _, r := range page.Reservations {
-			for _, instance := range r.Instances {
-				if findInstance(needle, instance) {
-					l.Println(aws.ToString(instance.InstanceId))
-				}
-			}
-		}
+		l.Println(aws.ToString(instance.InstanceId))
 	}
 
 	return nil
+}
+
+func ec2DescribeInstancesToInstances(d *ec2.DescribeInstancesOutput) iter.Seq[types.Instance] {
+	var ret []iter.Seq[types.Instance]
+	for _, r := range d.Reservations {
+		ret = append(ret, slices.Values(r.Instances))
+	}
+	return concat(ret...)
 }
 
 func findInstance(needle string, instance types.Instance) bool {

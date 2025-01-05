@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"iter"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
@@ -28,18 +31,22 @@ func init() {
 func findLogGroup(ctx context.Context, needle string, l *log.Logger, client cloudwatchlogs.DescribeLogGroupsAPIClient) error {
 	pages := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, nil)
 
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+	seq := paginatorToSeq(ctx, pages, logGroupListToItems)
+	seq = filter2(func(g types.LogGroup, err error) bool {
+		return err != nil || strings.Contains(aws.ToString(g.LogGroupName), needle)
+	}, seq)
+
+	for g, err := range seq {
 		if err != nil {
 			return logError("failed to query instances", err, l)
 		}
 
-		for _, g := range page.LogGroups {
-			if strings.Contains(aws.ToString(g.LogGroupName), needle) {
-				l.Println(aws.ToString(g.LogGroupName))
-			}
-		}
+		l.Println(aws.ToString(g.LogGroupName))
 	}
 
 	return nil
+}
+
+func logGroupListToItems(r *cloudwatchlogs.DescribeLogGroupsOutput) iter.Seq[types.LogGroup] {
+	return slices.Values(r.LogGroups)
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"iter"
 	"log"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
@@ -27,20 +29,24 @@ func init() {
 func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logger, client cloudfront.ListDistributionsAPIClient) error {
 	pages := cloudfront.NewListDistributionsPaginator(client, nil)
 
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+	seq := paginatorToSeq(ctx, pages, cloudfrontListToItems)
+	seq = filter2(func(dist types.DistributionSummary, err error) bool {
+		return err != nil || findCloudFrontDistribution(needle, dist)
+	}, seq)
+
+	for dist, err := range seq {
 		if err != nil {
 			return logError("failed to query distributions", err, l)
 		}
 
-		for _, dist := range page.DistributionList.Items {
-			if findCloudFrontDistribution(needle, dist) {
-				l.Println(aws.ToString(dist.Id))
-			}
-		}
+		l.Println(aws.ToString(dist.Id))
 	}
 
 	return nil
+}
+
+func cloudfrontListToItems(r *cloudfront.ListDistributionsOutput) iter.Seq[types.DistributionSummary] {
+	return slices.Values(r.DistributionList.Items)
 }
 
 func findCloudFrontDistribution(needle string, dist types.DistributionSummary) bool {

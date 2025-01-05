@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"iter"
 	"log"
+	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
@@ -36,15 +38,17 @@ func findByTag(ctx context.Context, client resourcegroupstaggingapi.GetResources
 		},
 	})
 
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+	for resource, err := range paginatorToSeq(ctx, pages, tagMappingListToResource) {
 		if err != nil {
 			return logError("failed to query tags", err, l)
 		}
-		for _, resource := range page.ResourceTagMappingList {
-			l.Println(aws.ToString(resource.ResourceARN))
-		}
+
+		l.Println(aws.ToString(resource.ResourceARN))
 	}
 
 	return nil
+}
+
+func tagMappingListToResource(r *resourcegroupstaggingapi.GetResourcesOutput) iter.Seq[types.ResourceTagMapping] {
+	return slices.Values(r.ResourceTagMappingList)
 }
