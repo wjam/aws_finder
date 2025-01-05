@@ -48,7 +48,7 @@ bin/.fmtcheck: bin/.generate $(go_files)
 	@touch bin/.fmtcheck
 
 bin/.coverage.out: bin/.generate $(go_files)
-	@go test -cover -v -count=1 ./... -coverpkg=$(shell go list ./... | xargs | sed -e 's/ /,/g') -coverprofile bin/.coverage.tmp
+	@go test -cover -v -count=1 ./... -coverpkg=./... -coverprofile bin/.coverage.tmp
 	@mv bin/.coverage.tmp bin/.coverage.out
 
 coverage: bin/.coverage.out

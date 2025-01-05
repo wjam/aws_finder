@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"iter"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
 )
@@ -37,20 +40,22 @@ func findLogStream(ctx context.Context, groupPrefix *string, needle string, l *l
 	pages := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, &cloudwatchlogs.DescribeLogGroupsInput{
 		LogGroupNamePrefix: groupPrefix,
 	})
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+
+	for g, err := range paginatorToSeq(ctx, pages, logGroupsToLogGroup) {
 		if err != nil {
 			return logError("failed to query log groups", err, l)
 		}
 
-		for _, g := range page.LogGroups {
-			if err := findStream(ctx, needle, l, client, aws.ToString(g.LogGroupName)); err != nil {
-				return logError("failed to query log streams", err, l)
-			}
+		if err := findStream(ctx, needle, l, client, aws.ToString(g.LogGroupName)); err != nil {
+			return logError("failed to query log streams", err, l)
 		}
 	}
 
 	return nil
+}
+
+func logGroupsToLogGroup(r *cloudwatchlogs.DescribeLogGroupsOutput) iter.Seq[types.LogGroup] {
+	return slices.Values(r.LogGroups)
 }
 
 func findStream(ctx context.Context, needle string, l *log.Logger, client cloudwatchlogs.DescribeLogStreamsAPIClient, group string) error {
@@ -58,20 +63,24 @@ func findStream(ctx context.Context, needle string, l *log.Logger, client cloudw
 		LogGroupName: aws.String(group),
 	})
 
-	for pages.HasMorePages() {
-		page, err := pages.NextPage(ctx)
+	seq := paginatorToSeq(ctx, pages, logStreamToLogStream)
+	seq = filter2(func(s types.LogStream, err error) bool {
+		return err != nil || strings.Contains(aws.ToString(s.LogStreamName), needle)
+	}, seq)
+
+	for s, err := range seq {
 		if err != nil {
 			return err
 		}
 
-		for _, s := range page.LogStreams {
-			if strings.Contains(aws.ToString(s.LogStreamName), needle) {
-				l.Println(fmt.Sprintf("%s/%s", group, aws.ToString(s.LogStreamName)))
-			}
-		}
+		l.Println(fmt.Sprintf("%s/%s", group, aws.ToString(s.LogStreamName)))
 	}
 
 	return nil
+}
+
+func logStreamToLogStream(r *cloudwatchlogs.DescribeLogStreamsOutput) iter.Seq[types.LogStream] {
+	return slices.Values(r.LogStreams)
 }
 
 type logStreamLister interface {
