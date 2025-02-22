@@ -10,7 +10,6 @@ on:
     branches:
       - "master"
 
-
 jobs:
   build:
 
@@ -24,7 +23,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Build
-        run: make
+        run: go run ./build
 
   dependabot:
     needs:

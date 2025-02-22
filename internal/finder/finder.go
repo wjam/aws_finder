@@ -2,13 +2,13 @@ package finder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"runtime/pprof"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/errgroup"
 
 	mapset "github.com/deckarep/golang-set/v2"
@@ -70,11 +70,12 @@ func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f 
 
 	wg, ctx := errgroup.WithContext(ctx)
 
+	var errs []error
 	for _, region := range regions {
 		sess, err := newSession(ctx, region, profile)
 		if err != nil {
 			parentLogger.Printf("Failed to create session for %s: %s", region, err)
-			err = multierror.Append(err, fmt.Errorf("failed to create session for %s: %w", region, err))
+			errs = append(errs, fmt.Errorf("failed to create session for %s: %w", region, err))
 			continue
 		}
 
@@ -91,10 +92,10 @@ func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f 
 	}
 
 	if wgErr := wg.Wait(); wgErr != nil {
-		err = multierror.Append(err, wgErr)
+		errs = append(errs, wgErr)
 	}
 
-	return err
+	return errors.Join(errs...)
 }
 
 func profiles() (mapset.Set[string], error) {
@@ -120,6 +121,10 @@ func profiles() (mapset.Set[string], error) {
 
 func profilesFromConfigFile() (mapset.Set[string], error) {
 	file, err := configFile()
+	if err != nil {
+		return nil, err
+	}
+
 	parsed, err := ini.Load(file)
 	if err != nil {
 		return nil, err
@@ -138,6 +143,10 @@ func profilesFromConfigFile() (mapset.Set[string], error) {
 
 func profilesFromCredentialsFile() (mapset.Set[string], error) {
 	file, err := credentialsFile()
+	if err != nil {
+		return nil, err
+	}
+
 	parsed, err := ini.Load(file)
 	if err != nil {
 		return nil, err
