@@ -33,6 +33,3 @@ archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
     formats:
       - binary
-
-release:
-  target_commitish: '{{ .Commit }}'
