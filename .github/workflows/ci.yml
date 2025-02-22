@@ -23,7 +23,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Build
-        run: go run ./build
+        run: go run ./build -v
 
   dependabot:
     needs:
