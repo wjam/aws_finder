@@ -20,6 +20,9 @@ builds:
       - linux
       - windows
       - darwin
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
 
 gomod:
   proxy: true
