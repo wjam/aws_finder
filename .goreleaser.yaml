@@ -20,6 +20,9 @@ builds:
       - linux
       - windows
       - darwin
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
 
 gomod:
   proxy: true
@@ -33,6 +36,3 @@ archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
     formats:
       - binary
-
-release:
-  target_commitish: '{{ .Commit }}'
