@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"iter"
 	"log"
 	"slices"
@@ -73,7 +72,7 @@ func findStream(ctx context.Context, needle string, l *log.Logger, client cloudw
 			return err
 		}
 
-		l.Println(fmt.Sprintf("%s/%s", group, aws.ToString(s.LogStreamName)))
+		l.Printf("%s/%s\n", group, aws.ToString(s.LogStreamName))
 	}
 
 	return nil

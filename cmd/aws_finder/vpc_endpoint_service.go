@@ -40,7 +40,7 @@ func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, c
 			return logError("failed to query vpc endpoint services", err, l)
 		}
 
-		l.Printf(*svc.ServiceName)
+		l.Print(*svc.ServiceName)
 	}
 
 	return nil

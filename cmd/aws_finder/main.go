@@ -49,6 +49,6 @@ source <(%[1]s completion zsh)
 }
 
 func logError(message string, err error, l *log.Logger) error {
-	l.Printf(fmt.Sprintf("%s: %s", message, err))
+	l.Printf("%s: %s", message, err)
 	return fmt.Errorf("%s: %w", message, err)
 }
