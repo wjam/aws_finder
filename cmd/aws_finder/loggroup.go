@@ -21,7 +21,7 @@ func init() {
 		Short: "Find a CloudWatch log group by name",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				return findLogGroup(ctx, args[0], l, cloudwatchlogs.NewFromConfig(conf))
 			})
 		},

@@ -98,7 +98,7 @@ func TestFindVpcEndpoints(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			require.NoError(t, findVpcEndpoints(context.Background(), test.needle, log.New(&buf, "", 0), &vpcEndpointLister{test.endpoints}))
+			require.NoError(t, findVpcEndpoints(t.Context(), test.needle, log.New(&buf, "", 0), &vpcEndpointLister{test.endpoints}))
 			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
 		})
 	}

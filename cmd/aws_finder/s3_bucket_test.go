@@ -16,7 +16,7 @@ import (
 
 func TestFindS3Bucket(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findS3Bucket(context.Background(), "find", log.New(&buf, "", 0), &buckets{
+	require.NoError(t, findS3Bucket(t.Context(), "find", log.New(&buf, "", 0), &buckets{
 		buckets: []types.Bucket{
 			{
 				Name: aws.String("foo"),

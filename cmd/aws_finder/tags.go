@@ -19,7 +19,7 @@ func init() {
 		Short: "Find resources by tags",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				return findByTag(ctx, resourcegroupstaggingapi.NewFromConfig(conf), l, args[0], args[1:]...)
 			})
 		},

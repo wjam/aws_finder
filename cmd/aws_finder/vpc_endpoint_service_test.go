@@ -16,7 +16,7 @@ import (
 
 func TestFindVpcEndpointService(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findVpcEndpointService(context.Background(), "find", log.New(&buf, "", 0), &vpcEndpoints{
+	require.NoError(t, findVpcEndpointService(t.Context(), "find", log.New(&buf, "", 0), &vpcEndpoints{
 		data: map[string]ec2.DescribeVpcEndpointServicesOutput{
 			"": {
 				NextToken: aws.String("next-one"),

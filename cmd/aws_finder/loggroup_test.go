@@ -17,7 +17,7 @@ import (
 
 func TestFindLogGroup(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findLogGroup(context.Background(), "find", log.New(&buf, "", 0), &logGroups{
+	require.NoError(t, findLogGroup(t.Context(), "find", log.New(&buf, "", 0), &logGroups{
 		data: [][]types.LogGroup{
 			{
 				{

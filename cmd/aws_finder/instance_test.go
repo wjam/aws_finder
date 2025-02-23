@@ -179,7 +179,7 @@ func TestFindInstance(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			require.NoError(t, findInstances(context.Background(), test.needle, log.New(&buf, "", 0), &instances{test.reservations}))
+			require.NoError(t, findInstances(t.Context(), test.needle, log.New(&buf, "", 0), &instances{test.reservations}))
 			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
 		})
 	}
