@@ -21,7 +21,7 @@ func init() {
 		Short: "Find an instance by type, AMI or ip address",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				return findInstances(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},

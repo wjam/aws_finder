@@ -20,7 +20,7 @@ func init() {
 		Short: "Find an S3 bucket by name",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerProfile(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				return findS3Bucket(ctx, args[0], l, s3.NewFromConfig(conf))
 			})
 		},

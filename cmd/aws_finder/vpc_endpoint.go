@@ -20,7 +20,7 @@ func init() {
 		Short: "Find a VPC endpoint by the given service name",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				return findVpcEndpoints(ctx, args[0], l, ec2.NewFromConfig(conf))
 			})
 		},

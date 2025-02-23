@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -20,15 +21,15 @@ import (
 )
 
 // SearchPerRegion will call `f` for every region in every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerRegion(ctx context.Context, f func(context.Context, *log.Logger, aws.Config) error) error {
-	return perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) error {
+func SearchPerRegion(ctx context.Context, output io.Writer, f func(context.Context, *log.Logger, aws.Config) error) error {
+	return perProfile(ctx, output, func(ctx context.Context, profile string, l *log.Logger) error {
 		return perRegion(ctx, profile, l, f)
 	})
 }
 
 // SearchPerProfile will call `f` for every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, aws.Config) error) error {
-	return perProfile(ctx, func(ctx context.Context, profile string, l *log.Logger) error {
+func SearchPerProfile(ctx context.Context, output io.Writer, f func(context.Context, *log.Logger, aws.Config) error) error {
+	return perProfile(ctx, output, func(ctx context.Context, profile string, l *log.Logger) error {
 		sess, err := newSession(ctx, "eu-west-1", profile)
 		if err != nil {
 			return err
@@ -37,7 +38,7 @@ func SearchPerProfile(ctx context.Context, f func(context.Context, *log.Logger, 
 	})
 }
 
-func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger) error) error {
+func perProfile(ctx context.Context, output io.Writer, f func(context.Context, string, *log.Logger) error) error {
 	profiles, err := profiles()
 	if err != nil {
 		return err
@@ -48,7 +49,7 @@ func perProfile(ctx context.Context, f func(context.Context, string, *log.Logger
 	for _, profile := range profiles.ToSlice() {
 		// Shadow the for variable so that it's no longer a pointer, which will change before the go function is run
 		profile := profile
-		l := log.New(os.Stdout, fmt.Sprintf("[%s] ", profile), 0)
+		l := log.New(output, fmt.Sprintf("[%s] ", profile), 0)
 
 		wg.Go(func() error {
 			var err error

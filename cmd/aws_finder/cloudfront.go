@@ -19,7 +19,7 @@ func init() {
 		Short: "Find CloudFront distributions by domain",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerProfile(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerProfile(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				return findCloudFrontDistributions(ctx, args[0], l, cloudfront.NewFromConfig(conf))
 			})
 		},

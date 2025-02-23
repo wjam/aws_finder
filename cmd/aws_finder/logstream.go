@@ -20,7 +20,7 @@ func init() {
 		Short: "Find a CloudWatch log stream by name",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
+			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
 				var group *string
 				var needle string
 				if len(args) == 1 {
@@ -72,7 +72,7 @@ func findStream(ctx context.Context, needle string, l *log.Logger, client cloudw
 			return err
 		}
 
-		l.Printf("%s/%s\n", group, aws.ToString(s.LogStreamName))
+		l.Printf("%s/%s", group, aws.ToString(s.LogStreamName))
 	}
 
 	return nil

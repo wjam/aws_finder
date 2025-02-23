@@ -3,6 +3,7 @@ package finder
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -32,7 +33,7 @@ foo = qux
 [profile region-failure]
 this = will-fail
 `)
-	setEnv(t, "AWS_CONFIG_FILE", configFile)
+	t.Setenv("AWS_CONFIG_FILE", configFile)
 
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
@@ -53,7 +54,7 @@ this = will-fail
 
 	var lock sync.RWMutex
 	var prefixes []string
-	assert.Error(t, SearchPerRegion(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
+	assert.Error(t, SearchPerRegion(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -88,7 +89,7 @@ aws_secret_access_key=321
 aws_access_key_id=123
 aws_secret_access_key=321
 `)
-	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile)
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", credentialsFile)
 
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
@@ -102,7 +103,7 @@ aws_secret_access_key=321
 
 	var lock sync.RWMutex
 	var prefixes []string
-	require.NoError(t, SearchPerRegion(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
+	require.NoError(t, SearchPerRegion(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -143,8 +144,8 @@ foo = baz
 [profile prod]
 foo = qux
 `)
-	setEnv(t, "AWS_CONFIG_FILE", configFile)
-	setEnv(t, "AWS_SHARED_CREDENTIALS_FILE", credentialsFile)
+	t.Setenv("AWS_CONFIG_FILE", configFile)
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", credentialsFile)
 
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
@@ -158,7 +159,7 @@ foo = qux
 
 	var lock sync.RWMutex
 	var prefixes []string
-	require.NoError(t, SearchPerRegion(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
+	require.NoError(t, SearchPerRegion(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -195,7 +196,7 @@ foo = qux
 [profile region-failure]
 this = will-fail
 `)
-	setEnv(t, "AWS_CONFIG_FILE", configFile)
+	t.Setenv("AWS_CONFIG_FILE", configFile)
 
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
@@ -210,7 +211,7 @@ this = will-fail
 
 	var lock sync.RWMutex
 	var prefixes []string
-	require.NoError(t, SearchPerProfile(context.Background(), func(ctx context.Context, l *log.Logger, _ aws.Config) error {
+	require.NoError(t, SearchPerProfile(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
 		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
@@ -263,12 +264,11 @@ func tempFile(t *testing.T, content string) string {
 	return credentialFile
 }
 
-func setEnv(t *testing.T, key, value string) {
-	existing := os.Getenv(key)
-	t.Cleanup(func() {
-		err := os.Setenv(key, existing)
-		assert.NoError(t, err)
-	})
-	err := os.Setenv(key, value)
-	require.NoError(t, err)
+var _ io.Writer = noOpWriter{}
+
+type noOpWriter struct {
+}
+
+func (n noOpWriter) Write(p []byte) (int, error) {
+	return len(p), nil
 }

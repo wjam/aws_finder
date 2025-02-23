@@ -17,7 +17,7 @@ import (
 
 func TestFindByTag(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findByTag(context.Background(), &resourceTagLister{
+	require.NoError(t, findByTag(t.Context(), &resourceTagLister{
 		t:      t,
 		key:    "tag-key",
 		values: []string{"value1", "value2"},

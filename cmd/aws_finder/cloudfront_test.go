@@ -99,7 +99,7 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			require.NoError(t, findCloudFrontDistributions(context.Background(), test.needle, log.New(&buf, "", 0), &distributions{test.distributions}))
+			require.NoError(t, findCloudFrontDistributions(t.Context(), test.needle, log.New(&buf, "", 0), &distributions{test.distributions}))
 			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
 		})
 	}

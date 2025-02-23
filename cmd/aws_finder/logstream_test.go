@@ -16,7 +16,7 @@ import (
 
 func TestFindLogStream_AllLogGroups(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findLogStream(context.Background(), nil, "find", log.New(&buf, "", 0), &logStreams{
+	require.NoError(t, findLogStream(t.Context(), nil, "find", log.New(&buf, "", 0), &logStreams{
 		logs: map[string][]types.LogStream{
 			"first": {
 				{
@@ -50,7 +50,7 @@ func TestFindLogStream_AllLogGroups(t *testing.T) {
 
 func TestFindLogStream_SpecificLogGroups(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findLogStream(context.Background(), aws.String("expected-prefix"), "find", log.New(&buf, "", 0), &logStreams{
+	require.NoError(t, findLogStream(t.Context(), aws.String("expected-prefix"), "find", log.New(&buf, "", 0), &logStreams{
 		logStreamPrefix: "expected-prefix",
 		logs: map[string][]types.LogStream{
 			"expected-prefix": {

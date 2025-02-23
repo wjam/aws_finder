@@ -17,7 +17,7 @@ import (
 
 func TestFindVpc(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findVpc(context.Background(), "needle", log.New(&buf, "", 0), &vpcs{
+	require.NoError(t, findVpc(t.Context(), "needle", log.New(&buf, "", 0), &vpcs{
 		data: [][]types.Vpc{
 			{
 				{
