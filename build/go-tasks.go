@@ -23,7 +23,7 @@ var goTest = goyek.Define(goyek.Task{
 	Action: func(a *goyek.A) {
 		out := filepath.Join("bin", "coverage.out")
 		html := filepath.Join("bin", "coverage.html")
-		if !cmd.Exec(a, fmt.Sprintf("go test -covermode=atomic -coverprofile=%q -coverpkg=./... ./...", out)) {
+		if !cmd.Exec(a, fmt.Sprintf("go test -race -covermode=atomic -coverprofile=%q -coverpkg=./... ./...", out)) {
 			return
 		}
 		cmd.Exec(a, fmt.Sprintf("go tool cover -html=%q -o %q", out, html))
