@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"log"
+	"errors"
+	"log/slog"
 	"strconv"
 	"testing"
 
@@ -13,11 +13,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
 func TestFindByTag(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findByTag(t.Context(), &resourceTagLister{
+
+	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+		Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
+		IgnoredAttributes: []string{"time"},
+	}))
+
+	require.NoError(t, findByTag(ctx, &resourceTagLister{
 		t:      t,
 		key:    "tag-key",
 		values: []string{"value1", "value2"},
@@ -28,9 +35,9 @@ func TestFindByTag(t *testing.T) {
 				},
 			},
 		},
-	}, log.New(&buf, "", 0), "tag-key", "value1", "value2"))
+	}, "tag-key", "value1", "value2"))
 
-	assert.Equal(t, "expected\n", buf.String())
+	assert.Equal(t, "level=INFO msg=expected\n", buf.String())
 }
 
 var _ resourcegroupstaggingapi.GetResourcesAPIClient = &resourceTagLister{}
@@ -43,22 +50,24 @@ type resourceTagLister struct {
 	resources [][]types.ResourceTagMapping
 }
 
-func (r *resourceTagLister) GetResources(ctx context.Context, input *resourcegroupstaggingapi.GetResourcesInput, _ ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
+func (r *resourceTagLister) GetResources(
+	ctx context.Context, input *resourcegroupstaggingapi.GetResourcesInput, _ ...func(*resourcegroupstaggingapi.Options),
+) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("missing context")
+		return nil, errors.New("missing context")
 	}
 	if aws.ToBool(input.ExcludeCompliantResources) || len(input.ResourceTypeFilters) != 0 {
-		return nil, fmt.Errorf("unexpected input")
+		return nil, errors.New("unexpected input")
 	}
 	if !assert.ElementsMatch(r.t, r.values, input.TagFilters[0].Values) {
-		return nil, fmt.Errorf("invalid values")
+		return nil, errors.New("invalid values")
 	}
 	if len(input.TagFilters) != 1 || aws.ToString(input.TagFilters[0].Key) != r.key {
-		return nil, fmt.Errorf("invalid input")
+		return nil, errors.New("invalid input")
 	}
 
 	if len(r.resources) == 0 {
-		return nil, fmt.Errorf("no more values")
+		return nil, errors.New("no more values")
 	}
 
 	var value []types.ResourceTagMapping

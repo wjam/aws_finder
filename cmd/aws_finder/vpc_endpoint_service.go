@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"iter"
-	"log"
 	"slices"
 	"strings"
 
@@ -12,22 +11,27 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
-func init() {
-	commands = append(commands, &cobra.Command{
+func vpcEndpointServiceCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "vpc_endpoint_service [needle]",
 		Short: "Find a VPC endpoint service by the given service name",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
-				return findVpcEndpointService(ctx, args[0], l, ec2.NewFromConfig(conf))
-			})
+			return finder.SearchPerRegion(
+				cmd.Context(),
+				func(ctx context.Context, conf aws.Config) error {
+					return findVpcEndpointService(ctx, args[0], ec2.NewFromConfig(conf))
+				})
 		},
-	})
+	}
 }
 
-func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, client describeVpcEndpointServicesClient) error {
+func findVpcEndpointService(
+	ctx context.Context, needle string, client describeVpcEndpointServicesClient,
+) error {
 	pages := newDescribeVpcEndpointServicesPaginator(client, nil)
 
 	seq := paginatorToSeq(ctx, pages, vpcEndpointServicesToServiceDetail)
@@ -37,10 +41,10 @@ func findVpcEndpointService(ctx context.Context, needle string, l *log.Logger, c
 
 	for svc, err := range seq {
 		if err != nil {
-			return logError("failed to query vpc endpoint services", err, l)
+			return err
 		}
 
-		l.Print(*svc.ServiceName)
+		log.Logger(ctx).InfoContext(ctx, aws.ToString(svc.ServiceName))
 	}
 
 	return nil

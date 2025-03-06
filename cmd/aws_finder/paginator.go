@@ -10,7 +10,9 @@ type paginatable[O, R any] interface {
 	NextPage(ctx context.Context, optFns ...func(O)) (R, error)
 }
 
-func paginatorToSeq[O, R, V any](ctx context.Context, p paginatable[O, R], f func(R) iter.Seq[V], optFns ...func(O)) iter.Seq2[V, error] {
+func paginatorToSeq[O, R, V any](
+	ctx context.Context, p paginatable[O, R], f func(R) iter.Seq[V], optFns ...func(O),
+) iter.Seq2[V, error] {
 	var empty V
 	return func(yield func(V, error) bool) {
 		for p.HasMorePages() {

@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
 func TestFindInstance(t *testing.T) {
@@ -179,8 +181,14 @@ func TestFindInstance(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			require.NoError(t, findInstances(t.Context(), test.needle, log.New(&buf, "", 0), &instances{test.reservations}))
-			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
+
+			ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+				Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
+				IgnoredAttributes: []string{"time"},
+			}))
+
+			require.NoError(t, findInstances(ctx, test.needle, &instances{test.reservations}))
+			assert.Equal(t, fmt.Sprintf("level=INFO msg=%s\n", test.expected), buf.String())
 		})
 	}
 }
@@ -191,9 +199,11 @@ type instances struct {
 	reservations [][]types.Reservation
 }
 
-func (i *instances) DescribeInstances(ctx context.Context, _ *ec2.DescribeInstancesInput, _ ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+func (i *instances) DescribeInstances(
+	ctx context.Context, _ *ec2.DescribeInstancesInput, _ ...func(*ec2.Options),
+) (*ec2.DescribeInstancesOutput, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("missing context")
+		return nil, errors.New("missing context")
 	}
 
 	var value []types.Reservation

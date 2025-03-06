@@ -5,10 +5,7 @@ import (
 	"github.com/goyek/x/boot"
 )
 
-func init() {
-	goyek.SetDefault(pipelineAll)
-}
-
 func main() {
+	goyek.SetDefault(pipelineAll)
 	boot.Main()
 }

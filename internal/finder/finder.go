@@ -4,41 +4,43 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log"
+	"log/slog"
 	"os"
 	"runtime/pprof"
 	"strings"
 
-	"golang.org/x/sync/errgroup"
-
-	mapset "github.com/deckarep/golang-set/v2"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/wjam/aws_finder/internal/log"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/ini.v1"
 )
 
-// SearchPerRegion will call `f` for every region in every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerRegion(ctx context.Context, output io.Writer, f func(context.Context, *log.Logger, aws.Config) error) error {
-	return perProfile(ctx, output, func(ctx context.Context, profile string, l *log.Logger) error {
-		return perRegion(ctx, profile, l, f)
+// SearchPerRegion will call `f` for every region in every profile defined in ~/.aws/config or ~/.aws/credentials.
+func SearchPerRegion(
+	ctx context.Context, f func(context.Context, aws.Config) error,
+) error {
+	return perProfile(ctx, func(ctx context.Context, profile string) error {
+		return perRegion(ctx, profile, f)
 	})
 }
 
-// SearchPerProfile will call `f` for every profile defined in ~/.aws/config or ~/.aws/credentials
-func SearchPerProfile(ctx context.Context, output io.Writer, f func(context.Context, *log.Logger, aws.Config) error) error {
-	return perProfile(ctx, output, func(ctx context.Context, profile string, l *log.Logger) error {
+// SearchPerProfile will call `f` for every profile defined in ~/.aws/config or ~/.aws/credentials.
+func SearchPerProfile(
+	ctx context.Context, f func(context.Context, aws.Config) error,
+) error {
+	return perProfile(ctx, func(ctx context.Context, profile string) error {
 		sess, err := newSession(ctx, "eu-west-1", profile)
 		if err != nil {
 			return err
 		}
-		return f(ctx, l, sess)
+		return f(ctx, sess)
 	})
 }
 
-func perProfile(ctx context.Context, output io.Writer, f func(context.Context, string, *log.Logger) error) error {
+func perProfile(ctx context.Context, f func(context.Context, string) error) error {
 	profiles, err := profiles()
 	if err != nil {
 		return err
@@ -47,23 +49,25 @@ func perProfile(ctx context.Context, output io.Writer, f func(context.Context, s
 	wg, ctx := errgroup.WithContext(ctx)
 
 	for _, profile := range profiles.ToSlice() {
-		// Shadow the for variable so that it's no longer a pointer, which will change before the go function is run
-		profile := profile
-		l := log.New(output, fmt.Sprintf("[%s] ", profile), 0)
-
 		wg.Go(func() error {
 			var err error
+			ctx := log.WithAttrs(ctx, slog.String("profile", profile))
 			pprof.Do(ctx, pprof.Labels("profile", profile), func(ctx context.Context) {
-				err = f(ctx, profile, l)
+				err = f(ctx, profile)
 			})
-			return err
+			if err == nil {
+				return nil
+			}
+			return fmt.Errorf("profile %q failed: %w", profile, err)
 		})
 	}
 
 	return wg.Wait()
 }
 
-func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f func(context.Context, *log.Logger, aws.Config) error) error {
+func perRegion(
+	ctx context.Context, profile string, f func(context.Context, aws.Config) error,
+) error {
 	regions, err := regions(ctx, profile)
 	if err != nil {
 		return fmt.Errorf("failed to lookup regions: %w", err)
@@ -73,22 +77,25 @@ func perRegion(ctx context.Context, profile string, parentLogger *log.Logger, f 
 
 	var errs []error
 	for _, region := range regions {
+		ctx := log.WithAttrs(ctx, slog.String("region", region))
 		sess, err := newSession(ctx, region, profile)
 		if err != nil {
-			parentLogger.Printf("Failed to create session for %s: %s", region, err)
+			log.Logger(ctx).ErrorContext(ctx, "failed to create session", slog.Any("error", err))
 			errs = append(errs, fmt.Errorf("failed to create session for %s: %w", region, err))
 			continue
 		}
 
-		l := log.New(parentLogger.Writer(), fmt.Sprintf("%s[%s] ", parentLogger.Prefix(), region), 0)
 		labelSet := pprof.Labels("region", region)
 
 		wg.Go(func() error {
 			var err error
 			pprof.Do(ctx, labelSet, func(ctx context.Context) {
-				err = f(ctx, l, sess)
+				err = f(ctx, sess)
 			})
-			return err
+			if err == nil {
+				return nil
+			}
+			return fmt.Errorf("region %q failed: %w", region, err)
 		})
 	}
 
@@ -207,10 +214,12 @@ func credentialsFile() (string, error) {
 	return fmt.Sprintf("%s/.aws/credentials", home), nil
 }
 
-// Things to be neutered when running in tests
+//nolint:gochecknoglobals // Neutered when running in tests.
 var ec2New = func(cfg aws.Config) regionLister {
 	return ec2.NewFromConfig(cfg)
 }
+
+//nolint:gochecknoglobals // Neutered when running in tests.
 var newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region), config.WithSharedConfigProfile(profile))
 	if err != nil {
@@ -218,8 +227,12 @@ var newSession = func(ctx context.Context, region, profile string) (aws.Config, 
 	}
 	return cfg, nil
 }
+
+//nolint:gochecknoglobals // Neutered when running in tests.
 var osUserHomeDir = os.UserHomeDir
 
 type regionLister interface {
-	DescribeRegions(ctx context.Context, params *ec2.DescribeRegionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error)
+	DescribeRegions(
+		ctx context.Context, params *ec2.DescribeRegionsInput, optFns ...func(*ec2.Options),
+	) (*ec2.DescribeRegionsOutput, error)
 }

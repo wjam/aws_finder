@@ -1,54 +1,44 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/wjam/aws_finder/internal/log"
 )
-
-var commands []*cobra.Command
 
 func main() {
 	exeName := os.Args[0][strings.LastIndex(os.Args[0], string(os.PathSeparator))+1:]
+	logLevel := &logLevelFlag{level: slog.LevelInfo}
 	root := &cobra.Command{
 		Use: exeName,
-	}
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := log.ContextWithLogger(cmd.Context(), slog.New(log.WithAttrsFromContextHandler{
+				Parent:            slog.NewTextHandler(cmd.OutOrStdout(), &slog.HandlerOptions{Level: logLevel.level}),
+				IgnoredAttributes: []string{"time"},
+			}))
 
-	var shellCompletion = &cobra.Command{
-		Use:   "completion [shell]",
-		Short: "Generates shell completion scripts",
-		Long: fmt.Sprintf(`To load completion run
-
-source <(%[1]s completion bash)
-source <(%[1]s completion zsh)
-`, exeName),
-		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
-		ValidArgs: []string{"bash", "zsh"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			switch args[0] {
-			case "bash":
-				return root.GenBashCompletion(os.Stdout)
-			case "zsh":
-				return root.GenZshCompletion(os.Stdout)
-			default:
-				return fmt.Errorf("unsupported shell %s", args[0])
-			}
+			cmd.SetContext(ctx)
+			return nil
 		},
 	}
 
-	root.AddCommand(commands...)
-	root.AddCommand(shellCompletion)
+	root.AddCommand(
+		cloudfrontCmd(),
+		instanceCmd(),
+		logGroupCmd(),
+		logStreamCmd(),
+		s3BucketCmd(),
+		tagCmd(),
+		vpcCmd(),
+		vpcEndpointCmd(),
+		vpcEndpointServiceCmd(),
+	)
+	root.Flags().Var(logLevel, "log-level", "Level to log at")
 
 	if err := root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
-}
-
-func logError(message string, err error, l *log.Logger) error {
-	l.Printf("%s: %s", message, err)
-	return fmt.Errorf("%s: %w", message, err)
 }

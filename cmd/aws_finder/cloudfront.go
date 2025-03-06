@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"iter"
-	"log"
 	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,22 +10,27 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
-func init() {
-	commands = append(commands, &cobra.Command{
+func cloudfrontCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "cloudfront [needle]",
 		Short: "Find CloudFront distributions by domain",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerProfile(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
-				return findCloudFrontDistributions(ctx, args[0], l, cloudfront.NewFromConfig(conf))
-			})
+			return finder.SearchPerProfile(
+				cmd.Context(),
+				func(ctx context.Context, conf aws.Config) error {
+					return findCloudFrontDistributions(ctx, args[0], cloudfront.NewFromConfig(conf))
+				})
 		},
-	})
+	}
 }
 
-func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logger, client cloudfront.ListDistributionsAPIClient) error {
+func findCloudFrontDistributions(
+	ctx context.Context, needle string, client cloudfront.ListDistributionsAPIClient,
+) error {
 	pages := cloudfront.NewListDistributionsPaginator(client, nil)
 
 	seq := paginatorToSeq(ctx, pages, cloudfrontListToItems)
@@ -36,10 +40,10 @@ func findCloudFrontDistributions(ctx context.Context, needle string, l *log.Logg
 
 	for dist, err := range seq {
 		if err != nil {
-			return logError("failed to query distributions", err, l)
+			return err
 		}
 
-		l.Println(aws.ToString(dist.Id))
+		log.Logger(ctx).InfoContext(ctx, aws.ToString(dist.Id))
 	}
 
 	return nil

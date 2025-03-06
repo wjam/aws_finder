@@ -14,8 +14,9 @@ var stageTest = goyek.Define(goyek.Task{
 	Name:  "test",
 	Usage: "test stage",
 	Deps: goyek.Deps{
-		golangciLint,
 		goTest,
+		golangciLint,
+		goModTidyDiff,
 	},
 })
 

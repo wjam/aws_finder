@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"log"
+	"errors"
+	"log/slog"
 	"strconv"
 	"testing"
 
@@ -13,11 +13,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
 func TestFindLogGroup(t *testing.T) {
 	var buf bytes.Buffer
-	require.NoError(t, findLogGroup(t.Context(), "find", log.New(&buf, "", 0), &logGroups{
+
+	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+		Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
+		IgnoredAttributes: []string{"time"},
+	}))
+
+	require.NoError(t, findLogGroup(ctx, "find", &logGroups{
 		data: [][]types.LogGroup{
 			{
 				{
@@ -38,7 +45,8 @@ func TestFindLogGroup(t *testing.T) {
 		},
 	}))
 
-	assert.Equal(t, "one to find\n", buf.String())
+	assert.Equal(t, `level=INFO msg="one to find"
+`, buf.String())
 }
 
 var _ cloudwatchlogs.DescribeLogGroupsAPIClient = &logGroups{}
@@ -47,12 +55,14 @@ type logGroups struct {
 	data [][]types.LogGroup
 }
 
-func (l *logGroups) DescribeLogGroups(ctx context.Context, input *cloudwatchlogs.DescribeLogGroupsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
+func (l *logGroups) DescribeLogGroups(
+	ctx context.Context, input *cloudwatchlogs.DescribeLogGroupsInput, _ ...func(*cloudwatchlogs.Options),
+) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("missing context")
+		return nil, errors.New("missing context")
 	}
 	if aws.ToString(input.LogGroupNamePrefix) != "" {
-		return nil, fmt.Errorf("invalid prefix")
+		return nil, errors.New("invalid prefix")
 	}
 
 	var value []types.LogGroup
