@@ -48,3 +48,11 @@ var goBuild = goyek.Define(goyek.Task{
 	},
 	Deps: []*goyek.DefinedTask{mkdirBin},
 })
+
+var goModTidyDiff = goyek.Define(goyek.Task{
+	Name:  "go-mod-tidy",
+	Usage: "go mod tidy",
+	Action: func(a *goyek.A) {
+		cmd.Exec(a, "go mod tidy -diff")
+	},
+})

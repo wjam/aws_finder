@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
 type describeVpcEndpointServicesClient interface {
-	DescribeVpcEndpointServices(ctx context.Context, params *ec2.DescribeVpcEndpointServicesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointServicesOutput, error)
+	DescribeVpcEndpointServices(
+		ctx context.Context, params *ec2.DescribeVpcEndpointServicesInput, optFns ...func(*ec2.Options),
+	) (*ec2.DescribeVpcEndpointServicesOutput, error)
 }
 
 type describeVpcEndpointServicesPaginator struct {
@@ -18,7 +20,9 @@ type describeVpcEndpointServicesPaginator struct {
 	firstPage bool
 }
 
-func newDescribeVpcEndpointServicesPaginator(client describeVpcEndpointServicesClient, params *ec2.DescribeVpcEndpointServicesInput) *describeVpcEndpointServicesPaginator {
+func newDescribeVpcEndpointServicesPaginator(
+	client describeVpcEndpointServicesClient, params *ec2.DescribeVpcEndpointServicesInput,
+) *describeVpcEndpointServicesPaginator {
 	if params == nil {
 		params = &ec2.DescribeVpcEndpointServicesInput{}
 	}
@@ -33,9 +37,11 @@ func (p *describeVpcEndpointServicesPaginator) HasMorePages() bool {
 	return p.firstPage || p.nextToken != nil
 }
 
-func (p *describeVpcEndpointServicesPaginator) NextPage(ctx context.Context, _ ...func(string)) (*ec2.DescribeVpcEndpointServicesOutput, error) {
+func (p *describeVpcEndpointServicesPaginator) NextPage(
+	ctx context.Context, _ ...func(string),
+) (*ec2.DescribeVpcEndpointServicesOutput, error) {
 	if !p.HasMorePages() {
-		return nil, fmt.Errorf("no more pages available")
+		return nil, errors.New("no more pages available")
 	}
 
 	params := *p.params

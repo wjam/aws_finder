@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"iter"
-	"log"
 	"slices"
 	"strings"
 
@@ -12,41 +12,46 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
-func init() {
-	commands = append(commands, &cobra.Command{
+func logStreamCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "log_stream <logGroupPrefix> [needle]",
 		Short: "Find a CloudWatch log stream by name",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.RangeArgs(1, 2), //nolint:mnd // up to 2 arguments
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
-				var group *string
-				var needle string
-				if len(args) == 1 {
-					needle = args[0]
-				} else {
-					group = aws.String(args[0])
-					needle = args[1]
-				}
-				return findLogStream(ctx, group, needle, l, cloudwatchlogs.NewFromConfig(conf))
-			})
+			return finder.SearchPerRegion(
+				cmd.Context(),
+				func(ctx context.Context, conf aws.Config) error {
+					var group *string
+					var needle string
+					if len(args) == 1 {
+						needle = args[0]
+					} else {
+						group = aws.String(args[0])
+						needle = args[1]
+					}
+					return findLogStream(ctx, group, needle, cloudwatchlogs.NewFromConfig(conf))
+				})
 		},
-	})
+	}
 }
 
-func findLogStream(ctx context.Context, groupPrefix *string, needle string, l *log.Logger, client logStreamLister) error {
+func findLogStream(
+	ctx context.Context, groupPrefix *string, needle string, client logStreamLister,
+) error {
 	pages := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, &cloudwatchlogs.DescribeLogGroupsInput{
 		LogGroupNamePrefix: groupPrefix,
 	})
 
 	for g, err := range paginatorToSeq(ctx, pages, logGroupsToLogGroup) {
 		if err != nil {
-			return logError("failed to query log groups", err, l)
+			return err
 		}
 
-		if err := findStream(ctx, needle, l, client, aws.ToString(g.LogGroupName)); err != nil {
-			return logError("failed to query log streams", err, l)
+		if err := findStream(ctx, needle, client, aws.ToString(g.LogGroupName)); err != nil {
+			return err
 		}
 	}
 
@@ -57,7 +62,9 @@ func logGroupsToLogGroup(r *cloudwatchlogs.DescribeLogGroupsOutput) iter.Seq[typ
 	return slices.Values(r.LogGroups)
 }
 
-func findStream(ctx context.Context, needle string, l *log.Logger, client cloudwatchlogs.DescribeLogStreamsAPIClient, group string) error {
+func findStream(
+	ctx context.Context, needle string, client cloudwatchlogs.DescribeLogStreamsAPIClient, group string,
+) error {
 	pages := cloudwatchlogs.NewDescribeLogStreamsPaginator(client, &cloudwatchlogs.DescribeLogStreamsInput{
 		LogGroupName: aws.String(group),
 	})
@@ -72,7 +79,7 @@ func findStream(ctx context.Context, needle string, l *log.Logger, client cloudw
 			return err
 		}
 
-		l.Printf("%s/%s", group, aws.ToString(s.LogStreamName))
+		log.Logger(ctx).InfoContext(ctx, fmt.Sprintf("%s/%s", group, aws.ToString(s.LogStreamName)))
 	}
 
 	return nil

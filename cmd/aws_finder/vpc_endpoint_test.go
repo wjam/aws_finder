@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/stretchr/testify/require"
+	"github.com/wjam/aws_finder/internal/log"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -98,8 +100,15 @@ func TestFindVpcEndpoints(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			require.NoError(t, findVpcEndpoints(t.Context(), test.needle, log.New(&buf, "", 0), &vpcEndpointLister{test.endpoints}))
-			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
+
+			ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+				Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
+				IgnoredAttributes: []string{"time"},
+			}))
+
+			err := findVpcEndpoints(ctx, test.needle, &vpcEndpointLister{test.endpoints})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("level=INFO msg=%s\n", test.expected), buf.String())
 		})
 	}
 }
@@ -110,12 +119,14 @@ type vpcEndpointLister struct {
 	endpoints [][]types.VpcEndpoint
 }
 
-func (v *vpcEndpointLister) DescribeVpcEndpoints(ctx context.Context, _ *ec2.DescribeVpcEndpointsInput, _ ...func(*ec2.Options)) (*ec2.DescribeVpcEndpointsOutput, error) {
+func (v *vpcEndpointLister) DescribeVpcEndpoints(
+	ctx context.Context, _ *ec2.DescribeVpcEndpointsInput, _ ...func(*ec2.Options),
+) (*ec2.DescribeVpcEndpointsOutput, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("missing context")
+		return nil, errors.New("missing context")
 	}
 	if len(v.endpoints) == 0 {
-		return nil, fmt.Errorf("no more values")
+		return nil, errors.New("no more values")
 	}
 
 	var value []types.VpcEndpoint

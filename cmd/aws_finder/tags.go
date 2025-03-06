@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"iter"
-	"log"
 	"slices"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,22 +10,30 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
 	"github.com/spf13/cobra"
 	"github.com/wjam/aws_finder/internal/finder"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
-func init() {
-	commands = append(commands, &cobra.Command{
+func tagCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "tag [key] <value> <value>",
 		Short: "Find resources by tags",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return finder.SearchPerRegion(cmd.Context(), cmd.OutOrStdout(), func(ctx context.Context, l *log.Logger, conf aws.Config) error {
-				return findByTag(ctx, resourcegroupstaggingapi.NewFromConfig(conf), l, args[0], args[1:]...)
-			})
+			return finder.SearchPerRegion(
+				cmd.Context(),
+				func(ctx context.Context, conf aws.Config) error {
+					return findByTag(ctx, resourcegroupstaggingapi.NewFromConfig(conf), args[0], args[1:]...)
+				})
 		},
-	})
+	}
 }
 
-func findByTag(ctx context.Context, client resourcegroupstaggingapi.GetResourcesAPIClient, l *log.Logger, key string, values ...string) error {
+func findByTag(
+	ctx context.Context,
+	client resourcegroupstaggingapi.GetResourcesAPIClient,
+	key string,
+	values ...string,
+) error {
 	// TODO need to identify what type of resources the resourcegroupstaggingapi doesn't support
 
 	pages := resourcegroupstaggingapi.NewGetResourcesPaginator(client, &resourcegroupstaggingapi.GetResourcesInput{
@@ -40,10 +47,10 @@ func findByTag(ctx context.Context, client resourcegroupstaggingapi.GetResources
 
 	for resource, err := range paginatorToSeq(ctx, pages, tagMappingListToResource) {
 		if err != nil {
-			return logError("failed to query tags", err, l)
+			return err
 		}
 
-		l.Println(aws.ToString(resource.ResourceARN))
+		log.Logger(ctx).InfoContext(ctx, aws.ToString(resource.ResourceARN))
 	}
 
 	return nil

@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
 func TestFindCloudFrontDistributions(t *testing.T) {
@@ -99,8 +101,15 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.needle, func(t *testing.T) {
 			var buf bytes.Buffer
-			require.NoError(t, findCloudFrontDistributions(t.Context(), test.needle, log.New(&buf, "", 0), &distributions{test.distributions}))
-			assert.Equal(t, fmt.Sprintf("%s\n", test.expected), buf.String())
+
+			ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+				Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
+				IgnoredAttributes: []string{"time"},
+			}))
+
+			err := findCloudFrontDistributions(ctx, test.needle, &distributions{test.distributions})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("level=INFO msg=%s\n", test.expected), buf.String())
 		})
 	}
 }
@@ -111,9 +120,11 @@ type distributions struct {
 	distributions [][]types.DistributionSummary
 }
 
-func (d *distributions) ListDistributions(ctx context.Context, _ *cloudfront.ListDistributionsInput, _ ...func(*cloudfront.Options)) (*cloudfront.ListDistributionsOutput, error) {
+func (d *distributions) ListDistributions(
+	ctx context.Context, _ *cloudfront.ListDistributionsInput, _ ...func(*cloudfront.Options),
+) (*cloudfront.ListDistributionsOutput, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("missing context")
+		return nil, errors.New("missing context")
 	}
 
 	var value []types.DistributionSummary

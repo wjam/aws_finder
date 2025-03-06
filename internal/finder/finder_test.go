@@ -2,21 +2,21 @@ package finder
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wjam/aws_finder/internal/log"
 )
 
 func TestSearchPerRegion_Config(t *testing.T) {
@@ -44,7 +44,7 @@ this = will-fail
 		}
 		return &r{}
 	}
-	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+	newSession = func(_ context.Context, region, profile string) (aws.Config, error) {
 		ret := aws.Config{
 			Region:        region,
 			ConfigSources: []interface{}{profile},
@@ -53,26 +53,31 @@ this = will-fail
 	}
 
 	var lock sync.RWMutex
-	var prefixes []string
-	assert.Error(t, SearchPerRegion(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
+	capture := captureHandler{}
+
+	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+		Parent: &capture,
+	}))
+
+	assert.Error(t, SearchPerRegion(ctx, func(ctx context.Context, _ aws.Config) error {
 		lock.Lock()
 		defer lock.Unlock()
-		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
+
+		log.Logger(ctx).InfoContext(ctx, "log")
 		return nil
 	}))
 
-	assert.ElementsMatch(t, prefixes, []string{
-		"[default] [eu-west-1]",
-		"[default] [eu-west-2]",
-		"[default] [us-east-1]",
-		"[dev] [eu-west-1]",
-		"[dev] [eu-west-2]",
-		"[dev] [us-east-1]",
-		"[prod] [eu-west-1]",
-		"[prod] [eu-west-2]",
-		"[prod] [us-east-1]",
+	assert.ElementsMatch(t, *capture.r, []string{
+		"profile=default region=eu-west-1",
+		"profile=default region=eu-west-2",
+		"profile=default region=us-east-1",
+		"profile=dev region=eu-west-1",
+		"profile=dev region=eu-west-2",
+		"profile=dev region=us-east-1",
+		"profile=prod region=eu-west-1",
+		"profile=prod region=eu-west-2",
+		"profile=prod region=us-east-1",
 	})
-
 }
 
 func TestSearch_Credentials(t *testing.T) {
@@ -94,32 +99,39 @@ aws_secret_access_key=321
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
 	}
-	ec2New = func(c aws.Config) regionLister {
+	ec2New = func(_ aws.Config) regionLister {
 		return &r{}
 	}
-	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+	newSession = func(_ context.Context, _, _ string) (aws.Config, error) {
 		return aws.Config{}, nil
 	}
 
 	var lock sync.RWMutex
-	var prefixes []string
-	require.NoError(t, SearchPerRegion(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
-		lock.Lock()
-		defer lock.Unlock()
-		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-		return nil
+	capture := captureHandler{}
+
+	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+		Parent: &capture,
 	}))
 
-	assert.ElementsMatch(t, prefixes, []string{
-		"[default] [eu-west-1]",
-		"[default] [eu-west-2]",
-		"[default] [us-east-1]",
-		"[dev] [eu-west-1]",
-		"[dev] [eu-west-2]",
-		"[dev] [us-east-1]",
-		"[baz] [eu-west-1]",
-		"[baz] [eu-west-2]",
-		"[baz] [us-east-1]",
+	err := SearchPerRegion(ctx, func(ctx context.Context, _ aws.Config) error {
+		lock.Lock()
+		defer lock.Unlock()
+
+		log.Logger(ctx).InfoContext(ctx, "log")
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, *capture.r, []string{
+		"profile=default region=eu-west-1",
+		"profile=default region=eu-west-2",
+		"profile=default region=us-east-1",
+		"profile=dev region=eu-west-1",
+		"profile=dev region=eu-west-2",
+		"profile=dev region=us-east-1",
+		"profile=baz region=eu-west-1",
+		"profile=baz region=eu-west-2",
+		"profile=baz region=us-east-1",
 	})
 }
 
@@ -150,35 +162,42 @@ foo = qux
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
 	}
-	ec2New = func(c aws.Config) regionLister {
+	ec2New = func(_ aws.Config) regionLister {
 		return &r{}
 	}
-	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+	newSession = func(_ context.Context, _, _ string) (aws.Config, error) {
 		return aws.Config{}, nil
 	}
 
 	var lock sync.RWMutex
-	var prefixes []string
-	require.NoError(t, SearchPerRegion(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
-		lock.Lock()
-		defer lock.Unlock()
-		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-		return nil
+	capture := captureHandler{}
+
+	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+		Parent: &capture,
 	}))
 
-	assert.ElementsMatch(t, prefixes, []string{
-		"[default] [eu-west-1]",
-		"[default] [eu-west-2]",
-		"[default] [us-east-1]",
-		"[dev] [eu-west-1]",
-		"[dev] [eu-west-2]",
-		"[dev] [us-east-1]",
-		"[baz] [eu-west-1]",
-		"[baz] [eu-west-2]",
-		"[baz] [us-east-1]",
-		"[prod] [eu-west-1]",
-		"[prod] [eu-west-2]",
-		"[prod] [us-east-1]",
+	err := SearchPerRegion(ctx, func(ctx context.Context, _ aws.Config) error {
+		lock.Lock()
+		defer lock.Unlock()
+
+		log.Logger(ctx).InfoContext(ctx, "log")
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, *capture.r, []string{
+		"profile=default region=eu-west-1",
+		"profile=default region=eu-west-2",
+		"profile=default region=us-east-1",
+		"profile=dev region=eu-west-1",
+		"profile=dev region=eu-west-2",
+		"profile=dev region=us-east-1",
+		"profile=baz region=eu-west-1",
+		"profile=baz region=eu-west-2",
+		"profile=baz region=us-east-1",
+		"profile=prod region=eu-west-1",
+		"profile=prod region=eu-west-2",
+		"profile=prod region=us-east-1",
 	})
 }
 
@@ -201,7 +220,7 @@ this = will-fail
 	osUserHomeDir = func() (string, error) {
 		return t.TempDir(), nil
 	}
-	newSession = func(ctx context.Context, region, profile string) (aws.Config, error) {
+	newSession = func(_ context.Context, region, profile string) (aws.Config, error) {
 		ret := aws.Config{
 			Region:        region,
 			ConfigSources: []interface{}{profile},
@@ -210,19 +229,26 @@ this = will-fail
 	}
 
 	var lock sync.RWMutex
-	var prefixes []string
-	require.NoError(t, SearchPerProfile(t.Context(), noOpWriter{}, func(ctx context.Context, l *log.Logger, _ aws.Config) error {
-		lock.Lock()
-		defer lock.Unlock()
-		prefixes = append(prefixes, strings.TrimSpace(l.Prefix()))
-		return nil
+	capture := captureHandler{}
+
+	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
+		Parent: &capture,
 	}))
 
-	require.Len(t, prefixes, 4)
-	assert.Contains(t, prefixes, "[default]")
-	assert.Contains(t, prefixes, "[dev]")
-	assert.Contains(t, prefixes, "[prod]")
-	assert.Contains(t, prefixes, "[region-failure]")
+	err := SearchPerProfile(ctx, func(ctx context.Context, _ aws.Config) error {
+		lock.Lock()
+		defer lock.Unlock()
+
+		log.Logger(ctx).InfoContext(ctx, "log")
+		return nil
+	})
+	require.NoError(t, err)
+
+	require.Len(t, *capture.r, 4)
+	assert.Contains(t, *capture.r, "profile=default")
+	assert.Contains(t, *capture.r, "profile=dev")
+	assert.Contains(t, *capture.r, "profile=prod")
+	assert.Contains(t, *capture.r, "profile=region-failure")
 }
 
 var _ regionLister = &r{}
@@ -231,14 +257,18 @@ var _ regionLister = &rFailure{}
 type rFailure struct {
 }
 
-func (r *rFailure) DescribeRegions(_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error) {
-	return nil, fmt.Errorf("something went wrong")
+func (r *rFailure) DescribeRegions(
+	_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options),
+) (*ec2.DescribeRegionsOutput, error) {
+	return nil, errors.New("something went wrong")
 }
 
 type r struct {
 }
 
-func (r *r) DescribeRegions(_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error) {
+func (r *r) DescribeRegions(
+	_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options),
+) (*ec2.DescribeRegionsOutput, error) {
 	return &ec2.DescribeRegionsOutput{
 		Regions: []types.Region{
 			{
@@ -271,4 +301,44 @@ type noOpWriter struct {
 
 func (n noOpWriter) Write(p []byte) (int, error) {
 	return len(p), nil
+}
+
+type captureHandler struct {
+	attrs []slog.Attr
+	r     *[]string
+}
+
+func (h *captureHandler) Handle(_ context.Context, r slog.Record) error {
+	var vals []string
+
+	for _, attr := range h.attrs {
+		vals = append(vals, attr.String())
+	}
+
+	r.Attrs(func(attr slog.Attr) bool {
+		vals = append(vals, attr.String())
+		return true
+	})
+
+	allVals := []string{strings.Join(vals, " ")}
+	if h.r != nil {
+		allVals = append(*h.r, allVals...)
+	}
+	h.r = &allVals
+	return nil
+}
+
+func (*captureHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *captureHandler) WithAttrs(as []slog.Attr) slog.Handler {
+	var c2 captureHandler
+	c2.r = h.r
+
+	//nolint:gocritic // we're copying the attributes to the child handler
+	c2.attrs = append(h.attrs, as...)
+	return &c2
+}
+
+func (*captureHandler) WithGroup(string) slog.Handler {
+	panic("not implemented")
 }
