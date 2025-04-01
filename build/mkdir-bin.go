@@ -23,7 +23,7 @@ var mkdirBin = goyek.Define(goyek.Task{
 		}
 
 		a.Log("mkdir bin/")
-		if err := os.MkdirAll("bin", 0755); err != nil {
+		if err := os.MkdirAll("bin", 0750); err != nil {
 			a.Error(err)
 			return
 		}
