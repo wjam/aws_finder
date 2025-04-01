@@ -51,7 +51,9 @@ type resourceTagLister struct {
 }
 
 func (r *resourceTagLister) GetResources(
-	ctx context.Context, input *resourcegroupstaggingapi.GetResourcesInput, _ ...func(*resourcegroupstaggingapi.Options),
+	ctx context.Context,
+	input *resourcegroupstaggingapi.GetResourcesInput,
+	_ ...func(*resourcegroupstaggingapi.Options),
 ) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
 	if ctx == nil {
 		return nil, errors.New("missing context")
