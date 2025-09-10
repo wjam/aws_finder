@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"testing"
@@ -103,8 +104,10 @@ func TestFindCloudFrontDistributions(t *testing.T) {
 			var buf bytes.Buffer
 
 			ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
-				Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
-				IgnoredAttributes: []string{"time"},
+				Parent: slog.NewTextHandler(io.MultiWriter(&buf, t.Output()), &slog.HandlerOptions{
+					Level:       slog.LevelDebug,
+					ReplaceAttr: log.FilterAttributesFromLog([]string{"time"}),
+				}),
 			}))
 
 			err := findCloudFrontDistributions(ctx, test.needle, &distributions{test.distributions})

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"testing"
 
@@ -20,8 +21,10 @@ func TestFindLogStream_AllLogGroups(t *testing.T) {
 	var buf bytes.Buffer
 
 	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
-		Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		IgnoredAttributes: []string{"time"},
+		Parent: slog.NewTextHandler(io.MultiWriter(&buf, t.Output()), &slog.HandlerOptions{
+			Level:       slog.LevelDebug,
+			ReplaceAttr: log.FilterAttributesFromLog([]string{"time"}),
+		}),
 	}))
 
 	require.NoError(t, findLogStream(ctx, nil, "find", &logStreams{
@@ -60,8 +63,10 @@ func TestFindLogStream_SpecificLogGroups(t *testing.T) {
 	var buf bytes.Buffer
 
 	ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
-		Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		IgnoredAttributes: []string{"time"},
+		Parent: slog.NewTextHandler(io.MultiWriter(&buf, t.Output()), &slog.HandlerOptions{
+			Level:       slog.LevelDebug,
+			ReplaceAttr: log.FilterAttributesFromLog([]string{"time"}),
+		}),
 	}))
 
 	require.NoError(t, findLogStream(ctx, aws.String("expected-prefix"), "find", &logStreams{

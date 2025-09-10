@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"testing"
@@ -183,8 +184,10 @@ func TestFindInstance(t *testing.T) {
 			var buf bytes.Buffer
 
 			ctx := log.ContextWithLogger(t.Context(), slog.New(log.WithAttrsFromContextHandler{
-				Parent:            slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
-				IgnoredAttributes: []string{"time"},
+				Parent: slog.NewTextHandler(io.MultiWriter(&buf, t.Output()), &slog.HandlerOptions{
+					Level:       slog.LevelDebug,
+					ReplaceAttr: log.FilterAttributesFromLog([]string{"time"}),
+				}),
 			}))
 
 			require.NoError(t, findInstances(ctx, test.needle, &instances{test.reservations}))

@@ -16,8 +16,11 @@ func main() {
 		Use: exeName,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := log.ContextWithLogger(cmd.Context(), slog.New(log.WithAttrsFromContextHandler{
-				Parent:            slog.NewTextHandler(cmd.OutOrStdout(), &slog.HandlerOptions{Level: logLevel.level}),
-				IgnoredAttributes: []string{"time"},
+				Parent: slog.NewTextHandler(cmd.ErrOrStderr(), &slog.HandlerOptions{
+					Level:       logLevel.level,
+					ReplaceAttr: log.FilterAttributesFromLog([]string{"time"}),
+					AddSource:   true,
+				}),
 			}))
 
 			cmd.SetContext(ctx)
