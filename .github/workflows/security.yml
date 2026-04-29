@@ -1,8 +1,5 @@
 name: Security Scan
-permissions:
-  contents: read # Required to review code
-  security-events: write # Required to upload security findings
-  pull-requests: read # Required for ??
+permissions: {}
 
 on:
   push:
@@ -16,11 +13,18 @@ on:
   schedule:
     - cron: '0 13 * * 4'
 
+concurrency: # Avoid needlessly running the same workflow multiple times
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   security:
-
+    name: Perform security scan on code
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read # Required to review code
+      security-events: write # Required to upload security findings
+      pull-requests: read # Required for ??
     steps:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
