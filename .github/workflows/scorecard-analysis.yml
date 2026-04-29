@@ -8,15 +8,24 @@ on:
     # Weekly on Saturdays.
     - cron:  '30 1 * * 6'
 
-permissions: read-all
+concurrency: # Avoid needlessly running the same workflow multiple times
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
-      # Needed to upload the results to code-scanning dashboard.
-      security-events: write
+      contents: read # (Probably) required to perform the analysis
+      actions: read # (Probably) required to perform the analysis
+      checks: read # (Probably) required to perform the analysis
+      issues: read # (Probably) required to perform the analysis
+      pull-requests: read # (Probably) required to perform the analysis
+      statuses: read # (Probably) required to perform the analysis
+      security-events: write # Needed to upload the results to code-scanning dashboard.
 
     steps:
       - name: "Checkout code"
@@ -34,6 +43,6 @@ jobs:
       # Upload the results to GitHub's code scanning dashboard (optional).
       # Commenting out will disable upload of results to your repo's Code Scanning dashboard
       - name: "Upload to code-scanning"
-        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v3.29.5
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: results.sarif
