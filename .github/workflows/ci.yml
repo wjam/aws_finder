@@ -12,6 +12,7 @@ on:
 
 jobs:
   build:
+    name: Test, build and lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -35,11 +36,12 @@ jobs:
   dependabot:
     needs:
       - build
+    name: Auto-merge PR
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
-      contents: write
-    if: ${{ github.actor == 'dependabot[bot]' }}
+      pull-requests: write # Required to automatically merge PR
+      contents: write # Required to automatically merge PR
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     steps:
       - name: Dependabot metadata
         id: metadata
