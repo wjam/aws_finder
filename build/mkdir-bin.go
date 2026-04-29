@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goyek/goyek/v2"
+	"github.com/goyek/goyek/v3"
 )
 
 var mkdirBin = goyek.Define(goyek.Task{
