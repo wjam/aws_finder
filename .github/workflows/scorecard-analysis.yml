@@ -12,13 +12,19 @@ concurrency: # Avoid needlessly running the same workflow multiple times
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-permissions: read-all
+permissions: {}
 
 jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
+      contents: read # (Probably) required to perform the analysis
+      actions: read # (Probably) required to perform the analysis
+      checks: read # (Probably) required to perform the analysis
+      issues: read # (Probably) required to perform the analysis
+      pull-requests: read # (Probably) required to perform the analysis
+      statuses: read # (Probably) required to perform the analysis
       security-events: write # Needed to upload the results to code-scanning dashboard.
 
     steps:

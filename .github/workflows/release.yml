@@ -6,6 +6,10 @@ on:
 name: Perform release
 permissions: {}
 
+concurrency: # Avoid needlessly running the same workflow multiple times
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Perform release
