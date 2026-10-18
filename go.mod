@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.336.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.41.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.3
-	github.com/deckarep/golang-set/v2 v2.9.0
+	github.com/deckarep/golang-set/v3 v3.0.0
 	github.com/goyek/goyek/v3 v3.0.1
 	github.com/goyek/x v0.4.0
 	github.com/spf13/cobra v1.10.2
@@ -41,7 +41,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
-	go.mongodb.org/mongo-driver v1.17.7 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 )
