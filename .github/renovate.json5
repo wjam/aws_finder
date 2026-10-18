@@ -40,6 +40,7 @@
       groupName: "gomod minor-update"
     },
     {
+      groupName: "Go Runtime environment",
       "matchManagers": ["gomod"],
       "matchDepNames": ["go"],
       "matchDepTypes": ["golang"],
