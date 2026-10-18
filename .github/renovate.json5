@@ -1,0 +1,49 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    // config:recommended + digest pinning, config migration PRs, abandoned-package detection, and more.
+    "config:best-practices",
+    "helpers:pinGitHubActionDigestsToSemver"
+  ],
+
+  // Give dependency updates time to be reviewed by various security companies.
+  minimumReleaseAge: "7 days",
+  // Don't create branches/PRs until the release age is met, otherwise Renovate opens PRs with a pending status check.
+  internalChecksFilter: "strict",
+
+  // config:recommended sets prHourlyLimit to 2, which would throttle the weekly compose batch inside a 4-hour schedule window.
+  prHourlyLimit: 0,
+  prConcurrentLimit: 20,
+
+  postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
+
+  packageRules: [
+    // ---------- github-actions ----------
+    {
+      matchManagers: ["github-actions"],
+      schedule: ["* * 1 * *"] // monthly
+    },
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "github-actions minor-update"
+    },
+
+    // ---------- gomod ----------
+    {
+      matchManagers: ["gomod"],
+      schedule: ["* * 1 * *"] // monthly
+    },
+    {
+      matchManagers: ["gomod"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "gomod minor-update"
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchDepNames": ["go"],
+      "matchDepTypes": ["golang"],
+      "rangeStrategy": "bump"
+    },
+  ]
+}
